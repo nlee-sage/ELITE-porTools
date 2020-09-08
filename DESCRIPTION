@@ -1,0 +1,21 @@
+Package: porTools
+Type: Package
+Title: Sage portal curation tools
+Version: 0.1.0
+Authors@R: 
+    person(given = "Kelsey",
+           family = "Montgomery",
+           role = c("aut", "cre"),
+           email = "kelsey.montgomery@sagebase.org",
+           comment = c(ORCID = "0000-0002-0126-8944"))
+Description: Sage portals require content management of publications, people, data, studies
+    and grants stored in Synapse. This package helps maintain that content with constrained
+    formatting.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Imports:
+  dplyr,
+  easyPubMed,
+  glue
+  
