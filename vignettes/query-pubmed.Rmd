@@ -1,0 +1,75 @@
+---
+title: "Query Pubmed"
+author: "Kelsey Montgomery"
+date: "9/18/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dccvalidator)
+library(dplyr)
+library(easyPubMed)
+library(readr)
+library(reticulate)
+synapseclient <- reticulate::import("synapseclient")
+syntab <- reticulate::import("synapseclient.table")
+syn <- synapseclient$Synapse()
+syn$login()
+```
+
+## Query Pubmed and store data as file annotations
+
+The schema for these steps is *pubmedId*, *grants* and *study*. Theses functions take
+a list of PubmedIds and queries the site to pull down title, abstract, authors, journal name, year and DOI. Theses annotations are visible in the [PEC Portal - Publications View](https://www.synapse.org/#!Synapse:syn22095937/tables/). See the [Explore Publications module](https://psychencode.synapse.org/Explore/Publications) for a visual of how this data is surfaced on the portal.
+
+```{r ex_format, echo = FALSE}
+tribble(~pubmedId, ~grants, ~study,
+        "24057217", "R21MH103877", c("study1,study2")
+        )
+```
+
+Import the list of Pubmed Ids and define the Synapse parentId where the file entities will be stored with the Pubmed-relevant annotations.
+
+```{r vars, echo=FALSE}
+parent <- "syn22235314"
+pmids <- readr::read_tsv(syn$get("syn22080024")$path, 
+                         col_types = readr::cols(.default = "c"))
+```
+
+## Run the code
+
+Any character vector can be passed to `query_list_pmids`. This function wraps several functions:
+- query Pubmed
+- create an entity name from first author, journal, year and Id
+- abbreviates the author names by first initial, last name
+- creates one row per PubmedId
+
+```{r query}
+dat <- query_list_pmids(pmids$pubmedId)
+```
+
+I am keeping an eye out for weird edge cases. These (hacky) steps clean some missing values and remove extraneous characters.
+
+```{r hacky}
+dat$title <- gsub("<i>|</i>", "", dat$title)
+dat$authors <- gsub("NA", "", dat$authors)
+dat$entity_name <- gsub("NA ", "", dat$entity_name)
+```
+
+`set_up_multiannotations` parses comma-separated lists to be stored correctly in Synapse as multi-value annotations. Then, study and grant annotations are joined to the Pubmed queries.
+
+```{r join}
+pmids <- set_up_multiannotations(pmids, "study")
+pmids <- set_up_multiannotations(pmids, "grants")
+
+mapping <- dplyr::right_join(pmids, dat, by = c("pubmedId" = "pmid"))
+mapping <- dplyr::rename(mapping, DOI = doi)
+```
+
+The final data is transposed so that it can be iterated over by `purrr` and stored in Synapse.
+
+```{r store}
+list <- purrr::transpose(mapping)
+store_as_annotations(parent = "syn22235314", list)
+```
