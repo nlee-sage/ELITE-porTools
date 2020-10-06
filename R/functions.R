@@ -6,7 +6,8 @@
 make_entity_name <- function(df){
   first <- df[1,]
   name <- glue::glue("{first$lastname} {first$journal} {first$year} (Pubmed ID {first$pmid})")
-  name
+  df <- dplyr::mutate(df, entity_name = name)
+  df
 }
 #' Query PubMed for publication data
 #' Returns a data frame with one author per row. Error handling for
