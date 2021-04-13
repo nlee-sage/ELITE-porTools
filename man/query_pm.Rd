@@ -6,10 +6,14 @@
 Returns a data frame with one author per row. Error handling for
 publications without an author list.}
 \usage{
-query_pm(pmid)
+query_pm(pmid, sleep_time = 0.35)
 }
 \arguments{
 \item{pmid}{PubmedId as a string.}
+
+\item{sleep_time}{Amount of time, in seconds, to sleep between queries.
+Without APIKey, Pubmed limits rate of queries to 3 per second. Default of
+0.35 seconds.}
 }
 \description{
 Query PubMed for publication data
