@@ -86,7 +86,7 @@ query_list_pmids <- function(vec, sleep_time = 0.35) {
 }
 #' Wrapper for Pubmed Query using general queries
 #' This function wraps several functions:
-#' - query Pubmed
+#' - query Pubmed using `query_general`
 #' - create an entity name from first author, journal, year and Id
 #' - abbreviates the author names by first initial, last name
 #' - creates one row per PubmedId
