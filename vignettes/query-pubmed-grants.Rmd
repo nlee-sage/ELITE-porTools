@@ -21,7 +21,7 @@ syn$login()
 
 ## Query Pubmed and store data as file annotations
 
-The data needed for these steps are *Grant Number*, *grantSerialNumber* and *Program*. Theses functions take a list of grant serial numbers and queries the site to pull down title, abstract, authors, journal name, year and DOI. Theses annotations are visible in the [AD Knowledge Portal - Publications View](https://www.synapse.org/#!Synapse:syn20448807/tables/). See the [Explore Publications module](https://adknowledgeportal.synapse.org/Explore/Publications) for a visual of how this data is surfaced on the portal.
+The data needed for these steps are *Grant Number*, *grantSerialNumber* and *Program*. Theses functions take a list of grant serial numbers and queries Pubmed to download title, abstract, authors, journal name, year and DOI. Theses annotations are visible in the [AD Knowledge Portal - Publications View](https://www.synapse.org/#!Synapse:syn20448807/tables/). See the [Explore Publications module](https://adknowledgeportal.synapse.org/Explore/Publications) for a visual of how this data is surfaced on the portal.
 
 ```{r ex_format, echo = FALSE}
 tribble(~`Grant Number`, ~grantSerialNumber, ~Program,
