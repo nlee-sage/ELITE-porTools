@@ -4,7 +4,7 @@
 \alias{query_list_general}
 \title{Wrapper for Pubmed Query using general queries
 This function wraps several functions:
-- query Pubmed
+- query Pubmed using `query_general`
 - create an entity name from first author, journal, year and Id
 - abbreviates the author names by first initial, last name
 - creates one row per PubmedId
@@ -23,7 +23,7 @@ Without APIKey, Pubmed limits rate of queries to 3 per second. Default of
 \description{
 Wrapper for Pubmed Query using general queries
 This function wraps several functions:
-- query Pubmed
+- query Pubmed using `query_general`
 - create an entity name from first author, journal, year and Id
 - abbreviates the author names by first initial, last name
 - creates one row per PubmedId

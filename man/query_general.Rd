@@ -7,7 +7,11 @@
 query_general(query, sleep_time = 0.35)
 }
 \arguments{
-\item{query}{Character string with query}
+\item{query}{Character string with query. The query can be simple
+(e.g. "alzheimer disease") or complex
+(e.g. "((alzheimer disease[TIAB]) AND (cat[TW]) AND (dog[TW]))". See the
+PubMed guide for search field descriptions and tags:
+https://pubmed.ncbi.nlm.nih.gov/help/#search-tags.}
 
 \item{sleep_time}{Amount of time, in seconds, to sleep between queries.
 Without APIKey, Pubmed limits rate of queries to 3 per second. Default of
