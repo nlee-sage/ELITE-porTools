@@ -91,7 +91,7 @@ dat$entity_name <- remove_unacceptable_characters(dat$entity_name)
 # Add columns that need to exist for now
 dat["long_amp_ad_grants"] <- dat$grant
 dat["doi"] <- dat$DOI
-dat["Program"] <- dat$consortium
+dat["consortium"] <- dat$Program
 dat <- set_up_multiannotations(dat, "grant")
 dat <- set_up_multiannotations(dat, "Program")
 ```
