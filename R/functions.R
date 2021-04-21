@@ -111,7 +111,11 @@ query_list_general <- function(queries, sleep_time = 0.35) {
 }
 #' Query for Pubmed IDs only
 #'
-#' @param query Character string with query
+#' @param query Character string with query. The query can be simple
+#' (e.g. "alzheimer disease") or complex
+#' (e.g. "((alzheimer disease[TIAB]) AND (cat[TW]) AND (dog[TW]))". See the
+#' PubMed guide for search field descriptions and tags:
+#' https://pubmed.ncbi.nlm.nih.gov/help/#search-tags.
 #' @param sleep_time Amount of time, in seconds, to sleep between queries.
 #' Without APIKey, Pubmed limits rate of queries to 3 per second. Default of
 #' 0.35 seconds.
@@ -153,7 +157,7 @@ store_as_annotations <- function(parent, list) {
 #' @export
 set_up_multiannotations <- function(df, value) {
   vec <- df[[rlang::as_string(value)]]
-  vec <- stringr::str_split(vec, pattern = ",")
+  vec <- stringr::str_split(vec, pattern = ", |,")
   df[[rlang::as_string(value)]] <- vec
   df
 }
