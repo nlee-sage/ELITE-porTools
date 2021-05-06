@@ -30,9 +30,12 @@ suppressPackageStartupMessages(library("porTools"))
 #' @param syn Synapse client object
 #' @param annots Synapse annotation object for the task folder
 #' @param success TRUE if the task was completed successfully, else FALSE
-update_task_annotation <- function(syn, annots, success) {
+#' @param task_view synID for the task file view
+update_task_annotation <- function(syn, annots, success, task_view) {
   annots['completed_successfully'] <- success
   syn$set_annotations(annots)
+  ## Force file view update
+  syn$tableQuery(glue::glue("SELECT * FROM {task_view} LIMIT 1"))
 }
 
 ## Setup -----------------------------------------------------------------------
@@ -86,6 +89,8 @@ table_id <- "syn17024229"
 pub_table <- "syn20448807"
 ## Folder object in Synapse for tracking success/fail
 task_folder <- "syn25582553"
+## File view scoped to the task folders
+task_table <- "syn25582622"
 
 task_annots <- tryCatch(
   {
@@ -118,7 +123,12 @@ grants <- tryCatch(
       "Failed at querying grant table:\n  {e$message}"
     )
     error(logger, failure_message)
-    update_task_annotation(syn = syn, annots = task_annots, success = "false")
+    update_task_annotation(
+      syn = syn,
+      annots = task_annots,
+      success = "false",
+      task_view = task_table
+    )
     quit(status = 1)
   }
 )
@@ -152,7 +162,12 @@ dat <- tryCatch(
       "Failed to tidy data -- something is wrong:\n  {e$message}"
     )
     error(logger, failure_message)
-    update_task_annotation(syn = syn, annots = task_annots, success = "false")
+    update_task_annotation(
+      syn = syn,
+      annots = task_annots,
+      success = "false",
+      task_view = task_table
+    )
     quit(status = 1)
   }
 )
@@ -187,7 +202,12 @@ tryCatch(
       "Failed to store all of the publications:\n  {e$message}"
     )
     error(logger, failure_message)
-    update_task_annotation(syn = syn, annots = task_annots, success = "false")
+    update_task_annotation(
+      syn = syn,
+      annots = task_annots,
+      success = "false",
+      task_view = task_table
+    )
     quit(status = 1)
   }
 )
@@ -198,5 +218,10 @@ syn$tableQuery(glue::glue("SELECT * FROM {pub_table} LIMIT 1"))
 ## Win -----------------------------------------------------------
 
 info(logger, "Publications updated without incident")
-update_task_annotation(syn = syn, annots = task_annots, success = "true")
+update_task_annotation(
+  syn = syn,
+  annots = task_annots,
+  success = "true",
+  task_view = task_table
+)
 quit(status = 0)
