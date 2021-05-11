@@ -181,11 +181,6 @@ dat$abstract <- hacky_cleaning(dat$abstract)
 ## Remove common, unallowed characters from entity name; includes hacky_cleaning
 dat$entity_name <- remove_unacceptable_characters(dat$entity_name)
 
-## Add columns that need to exist for now; should remove later
-dat["long_amp_ad_grants"] <- dat$grant
-dat["doi"] <- dat$DOI
-dat["consortium"] <- dat$Program
-
 ## Set up multi-annotation columns correctly
 dat <- set_up_multiannotations(dat, "grant")
 dat <- set_up_multiannotations(dat, "Program")

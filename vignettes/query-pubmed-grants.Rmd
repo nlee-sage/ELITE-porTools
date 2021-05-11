@@ -88,10 +88,6 @@ dat$entity_name <- remove_unacceptable_characters(dat$entity_name)
 `set_up_multiannotations` parses comma-separated lists to be stored correctly in Synapse as multi-value annotations. Before setting up the multiannotations, add extra columns that are needed for working with the Portal. The additional, redundant columns will be removed in the future. Should keep `grant` and `Program`, and remove `long_amp_ad_grants`, `doi`, and `consortium`.
 
 ```{r columns}
-# Add columns that need to exist for now
-dat["long_amp_ad_grants"] <- dat$grant
-dat["doi"] <- dat$DOI
-dat["consortium"] <- dat$Program
 dat <- set_up_multiannotations(dat, "grant")
 dat <- set_up_multiannotations(dat, "Program")
 ```
