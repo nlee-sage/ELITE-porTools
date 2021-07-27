@@ -184,7 +184,7 @@ grants <- tryCatch(
       update_task_annotation(
         syn = syn,
         annots = task_annots,
-        success = "false",
+        success = FALSE,
         task_view = opts$task_table
       )
     }
@@ -227,7 +227,7 @@ dat <- tryCatch(
       update_task_annotation(
         syn = syn,
         annots = task_annots,
-        success = "false",
+        success = FALSE,
         task_view = opts$task_table
       )
     }
@@ -264,7 +264,7 @@ tryCatch(
       update_task_annotation(
         syn = syn,
         annots = task_annots,
-        success = "false",
+        success = FALSE,
         task_view = opts$task_table
       )
     }
@@ -284,7 +284,7 @@ if (update_task) {
   update_task_annotation(
     syn = syn,
     annots = task_annots,
-    success = "true",
+    success = TRUE,
     task_view = opts$task_table
   )
 }
