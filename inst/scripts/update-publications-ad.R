@@ -62,7 +62,7 @@ option_list <- list(
     help = "Synapse Personal Access Token. If not given, assumes local .synapseConfig."
   ),
   make_option(
-    "--qrant_table",
+    "--grant_table",
     action = "store",
     default = NA,
     type = "character",
