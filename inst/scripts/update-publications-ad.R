@@ -126,7 +126,7 @@ syntab <- reticulate::import("synapseclient.table")
 syn <- synapseclient$Synapse()
 tryCatch(
   {
-    if(opts$auth_token) {
+    if(!is.na(opts$auth_token)) {
       syn$login(authToken = opts$auth_token)
     } else {
       syn$login()
