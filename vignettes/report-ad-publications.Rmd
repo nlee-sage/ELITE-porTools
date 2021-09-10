@@ -1,0 +1,147 @@
+---
+title: "AD Knowledge Portal Publication Report"
+author: "Nicole Kauer"
+date: "9/2/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+
+This walks through the process of creating a table for the AD Knowledge Portal publications engagement report. The table contains publications queried from PubMed and an indicator of whether a Sage-supported PI appears in the list of authors.
+
+## Set up
+
+Pull in needed packages and sign into Synapse.
+
+```{r login, echo=FALSE}
+library(porTools)
+library(tidyverse)
+synapse <- reticulate::import("synapseclient")
+syn <- synapse$Synapse()
+syn$login()
+```
+
+## Query, Clean, and Upload
+
+### Query PubMed
+
+Query PubMed for:
+- AD Knowledge Portal
+- AMP-AD Knowledge Portal
+- AMP-AD
+- MO2VE-AD
+- MODEL-AD
+- Resilience-AD
+- Psych-AD
+- TREAT-AD
+- AMP-AD Portal
+- syn2580853
+- adknowledgeportal.org
+- adknowledgeportal.synapse.org
+
+Left out programs CDCP and ELITE due to high chance of getting irrelevant publications.
+
+Add in publications from grant serial number query, which is in the [Portal - Publications table](https://www.synapse.org/#!Synapse:syn20448807/tables/).
+
+```{r query1, echo=FALSE}
+query_list <- list(
+  "AD AND Knowledge AND Portal",
+  "AMP-AD AND Knowledge AND Portal",
+  "AMP-AD",
+  "MO2VE-AD",
+  "MODEL-AD",
+  "Resilience-AD",
+  "Psych-AD",
+  "TREAT-AD",
+  "AMP-AD AND Portal",
+  "syn2580853",
+  "adknowledgeportal.org",
+  "adknowledgeportal.synapse.org"
+)
+
+pub_query <- query_list_general(query_list)
+# Remove duplicates
+# Note that dplyr::distinct doesn't do a good job of this because of query col;
+# use pmid to find unique ones
+pub_query <- pub_query[!duplicated(pub_query$pmid), ]
+# Clean up unnecessary cols
+pub_query <- dplyr::select(pub_query, pmid, doi, title, year, journal, authors)
+```
+
+The publications should also be queried by grant. This helps discover any publications not returned by the initial query. While these _should_ all be publications from Sage-supported PIs, it is possible for that to not be the case. Since the query is already run for the AD Knowledge Portal, the table simply has to be queried for the PubMed IDs. PubMed will still need to be queried for each publication due truncation of the author list for the Portal.
+
+```{R query2, echo=FALSE}
+# Grab pubmed ids from the grant publication table
+pub_tab <- "syn20448807"
+grants <- syn$tableQuery(
+  glue::glue("SELECT pubmed_id FROM {pub_tab}")
+)$asDataFrame()[[1]]
+# Pull pubmed queries, again, so get full author list
+pub_grants <- purrr::map(grants, ~ query_list_pmids(.))
+pub_grants <- Reduce(rbind, pub_grants)
+pub_grants <- pub_grants[!duplicated(pub_grants$pmid), ]
+pub_grants <- dplyr::select(pub_grants, pmid, doi, title, year, journal, authors)
+```
+
+### Join and Indicate PIs
+
+PIs are taken from the Portal - People table with the role 'PI'. To match how author names are returned from the query, each PI name is shorted to the format 'lastname initials' (example: Kauer NM). Since it's possible that the Portal - People table may not have both first and middle initials or the correct spelling, there may be a descrepancy in the publications marked as having a supported PI.
+
+```{R join, echo=FALSE}
+# Join
+pubs <- rbind(pub_query, pub_grants)
+# Remove duplicates
+pubs <- pubs[!duplicated(pubs$pmid), ]
+
+# Grab people
+people_tab <- "syn13897207"
+people <- syn$tableQuery(
+  glue::glue(
+    "SELECT firstName, lastName FROM {people_tab} WHERE role LIKE '%PI%'"
+  )
+)$asDataFrame()
+# Make names into lastName firstName initials
+people[, "fullName"] <- unlist(purrr::map2(
+  people$firstName,
+  people$lastName,
+  function(first, last) {
+    splitnames <- unlist(strsplit(first, " |[.]"))
+    initials <- gsub("(^[[:alpha:]])[[:alpha:]]+", "\\1", splitnames)
+    initials <- glue::glue_collapse(initials, sep = "")
+    glue::glue("{last} {initials}")
+  }
+))
+
+pubs[, "isSecondaryResearch"] <- unlist(purrr::map(
+  pubs$authors,
+  function(authors) {
+    !any(unlist(purrr::map(people$fullName, function(fullName) {
+      grepl(fullName, authors, ignore.case = TRUE)
+    })))
+  }
+))
+```
+
+### Store in Synapse
+
+The final table is stored in Synapse.
+
+```{R store, echo=FALSE}
+## Delete old publication report table rows
+pub_report_table <- "syn26148137"
+current_table <- syn$tableQuery(glue("SELECT * FROM {pub_report_table}"))
+syn$delete(current_table) # delete current rows
+
+## Update table rows
+temp_table <- tempfile()
+write_csv(pubs, temp_table, na = "")
+new_table <- synapse$Table(pub_report_table, temp_table)
+syn$store(new_table)
+
+## Query to force table index to rebuild
+syn$tableQuery(glue("SELECT ROW_ID FROM {pub_report_table}"))
+```

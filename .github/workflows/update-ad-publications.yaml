@@ -1,0 +1,55 @@
+name: "Update AD Publications"
+
+on:
+  schedule:
+    - cron: "0 5 * * 1"
+
+env:
+  RETICULATE_AUTOCONFIGURE: 'FALSE'
+  R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
+  SYNAPSE_AUTH_TOKEN: ${{ secrets.SYNAPSE_PAT }}
+
+jobs:
+  update-ad-publications:
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: r-lib/actions/setup-r@master
+        with:
+          r-version: '4.0'
+
+      - name: Query dependencies
+        run: |
+          install.packages('remotes')
+          saveRDS(remotes::dev_package_deps(dependencies = TRUE), "depends.Rds", version = 2)
+        shell: Rscript {0}
+
+      - name: Install system dependencies
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get -y update
+          sudo apt-get install -y make python-minimal pandoc pandoc-citeproc git-core libv8-dev libxml2-dev libcurl4-openssl-dev libssl-dev libssh2-1-dev zlib1g-dev libgit2-dev
+
+      - name: Install dependencies
+        run: |
+          Sys.setenv()
+          library(remotes)
+          deps <- readRDS('depends.Rds')
+          deps[['installed']] <- vapply(deps[['package']], remotes:::local_sha, character(1))
+          update(deps)
+        shell: Rscript {0}
+
+      - name: Install Miniconda
+        run: |
+          Rscript -e "remotes::install_github('rstudio/reticulate')"
+          Rscript -e "reticulate::install_miniconda()"
+
+      - name: Install Python deps
+        run: |
+          Rscript -e "reticulate::py_discover_config()"
+          Rscript -e "reticulate::py_install(c('pandas', 'numpy', 'boto3', 'synapseclient'), pip = TRUE)"
+
+      - name: Query PubMed and upload results
+        run: |
+          Rscript ./inst/scripts/update-publications-ad.R --grant_table syn17024229 --parent syn20463015 --pub_table syn20448807 --auth_token ${{ secrets.SYNAPSE_PAT }}
