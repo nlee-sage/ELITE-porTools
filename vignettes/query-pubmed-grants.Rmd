@@ -1,0 +1,108 @@
+---
+title: "Query Pubmed by Grant"
+author: "Nicole Kauer", "Kelsey Montgomery"
+date: "3/24/2020"
+output: html_document
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dccvalidator)
+library(dplyr)
+library(easyPubMed)
+library(readr)
+library(reticulate)
+library(porTools)
+synapseclient <- reticulate::import("synapseclient")
+syntab <- reticulate::import("synapseclient.table")
+syn <- synapseclient$Synapse()
+syn$login()
+```
+
+## Query Pubmed and store data as file annotations
+
+The data needed for these steps are *Grant Number*, *grantSerialNumber* and *Program*. Theses functions take a list of grant serial numbers and queries Pubmed to download title, abstract, authors, journal name, year and DOI. Theses annotations are visible in the [AD Knowledge Portal - Publications View](https://www.synapse.org/#!Synapse:syn20448807/tables/). See the [Explore Publications module](https://adknowledgeportal.synapse.org/Explore/Publications) for a visual of how this data is surfaced on the portal.
+
+```{r ex_format, echo = FALSE}
+tribble(~`Grant Number`, ~grantSerialNumber, ~Program,
+        "U01AG046139", "AG046139", "AMP-AD"
+        )
+```
+
+Import the grants with their respective programs and serial numbers.
+
+```{r vars, echo=FALSE}
+table_id <- "syn17024229"
+grants <- syn$tableQuery(
+  glue::glue("SELECT \"Grant Number\", grantSerialNumber, Program FROM {table_id}")
+)$asDataFrame()
+# Remove rows that have NaN or NA or empty string for the serial number
+grants <- grants[!(grants$grantSerialNumber %in% c(NaN, NA, "")), ]
+```
+## Run the code
+
+Any character vector can be passed to `query_list_general`. This function wraps several functions:
+- query Pubmed
+- create an entity name from first author, journal, year and Id
+- abbreviates the author names by first initial, last name
+- creates one row per PubmedId
+- creates grant column to associate with PubmedId
+- leaves out grants that were not associated with a PubmedId
+- creates a *query* column to associate the PubmedId with a specific query
+
+```{r query, message=FALSE, warning=FALSE}
+dat <- query_list_general(grants$grantSerialNumber)
+```
+
+Join the grants to the Pubmed queries and clean up.
+
+```{r query}
+dat <- dat %>%
+  rename(grantSerialNumber = query)
+# For some reason, grantSerialNumber isn't always a character
+grants$grantSerialNumber <- as.character(grants$grantSerialNumber)
+dat <- dplyr::right_join(grants, dat, by = "grantSerialNumber")
+# Need to remove duplicates, but keep all grants and consortium
+# Includes some renaming and dropping of columns
+dat <- dat %>%
+  group_by(pmid) %>%
+  mutate(grant = glue::glue_collapse(unique(.data$`Grant Number`), ", ")) %>%
+  mutate(consortium = glue::glue_collapse(unique(.data$Program), ", ")) %>%
+  select(!c(`Grant Number`, Program, grantSerialNumber)) %>%
+  rename(pubmed_id = pmid, DOI = doi, Program = consortium) %>%
+  distinct()
+```
+
+The following has fixes for some of the formatting issues found. It also updates the entity name to remove common, unallowed characters.
+
+```{r hacky}
+# Included in hacky_cleaning is conversion to ascii and removing html formatting
+dat$title <- hacky_cleaning(dat$title)
+dat$authors <- hacky_cleaning(dat$authors)
+dat$journal <- hacky_cleaning(dat$journal)
+dat$abstract <- hacky_cleaning(dat$abstract)
+# Remove common, unallowed characters from entity name; includes hacky_cleaning
+dat$entity_name <- remove_unacceptable_characters(dat$entity_name)
+```
+
+`set_up_multiannotations` parses comma-separated lists to be stored correctly in Synapse as multi-value annotations. Before setting up the multiannotations, add extra columns that are needed for working with the Portal. The additional, redundant columns will be removed in the future. Should keep `grant` and `Program`, and remove `long_amp_ad_grants`, `doi`, and `consortium`.
+
+```{r columns}
+dat <- set_up_multiannotations(dat, "grant")
+dat <- set_up_multiannotations(dat, "Program")
+```
+
+The final data is transposed so that it can be iterated over by `purrr` and stored in Synapse under the `parent` folder.
+
+```{r store, message=FALSE, echo=FALSE}
+parent = "syn20463015"
+dat_list <- purrr::transpose(dat)
+store_as_annotations(parent = parent, dat_list)
+```
+
+Query the publications table to force an update.
+
+```{r query, message=FALSE, echo=FALSE}
+pub_table <- "syn20448807"
+syn$tableQuery(glue::glue("SELECT * FROM {pub_table} LIMIT 1"))
+```
