@@ -2,7 +2,7 @@ name: "Update AD Publications"
 
 on:
   schedule:
-    - cron: "0 18 * * 2"
+    - cron: "0 22 * * 2"
 
 env:
   RETICULATE_AUTOCONFIGURE: 'FALSE'
@@ -11,7 +11,7 @@ env:
 
 jobs:
   update-ad-publications:
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
 
