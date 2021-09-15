@@ -2,7 +2,7 @@ name: "Update AD Publications"
 
 on:
   schedule:
-    - cron: "0 17 * * 3"
+    - cron: "0 21 * * 3"
 
 env:
   RETICULATE_AUTOCONFIGURE: 'FALSE'
@@ -23,6 +23,7 @@ jobs:
       - name: Query dependencies
         run: |
           install.packages('remotes')
+          install.packages('devtools')
           saveRDS(remotes::dev_package_deps(dependencies = TRUE), "depends.Rds", version = 2)
         shell: Rscript {0}
 
@@ -34,7 +35,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          remotes::install_deps(dependencies = TRUE)
           library(remotes)
           deps <- readRDS('depends.Rds')
           deps[['installed']] <- vapply(deps[['package']], remotes:::local_sha, character(1))
@@ -50,7 +50,11 @@ jobs:
         run: |
           Rscript -e "reticulate::py_discover_config()"
           Rscript -e "reticulate::py_install(c('pandas', 'numpy', 'boto3', 'synapseclient'), pip = TRUE)"
-
+      
+      - name: Install porTools
+        run: |
+          Rscript -e "devtools::install_github('Sage-Bionetworks/porTools')"
+      
       - name: Query PubMed and upload results
         run: |
           Rscript ./inst/scripts/update-publications-ad.R --grant_table syn17024229 --parent syn20463015 --pub_table syn20448807 --auth_token ${{ secrets.SYNAPSE_PAT }}
