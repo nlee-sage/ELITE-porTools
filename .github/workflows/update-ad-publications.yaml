@@ -2,7 +2,7 @@ name: "Update AD Publications"
 
 on:
   schedule:
-    - cron: "0 16 * * 3"
+    - cron: "0 17 * * 3"
 
 env:
   RETICULATE_AUTOCONFIGURE: 'FALSE'
@@ -34,6 +34,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          remotes::install_deps(dependencies = TRUE)
           library(remotes)
           deps <- readRDS('depends.Rds')
           deps[['installed']] <- vapply(deps[['package']], remotes:::local_sha, character(1))
