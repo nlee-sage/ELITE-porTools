@@ -56,4 +56,4 @@ jobs:
       
       - name: Query PubMed and upload results
         run: |
-          Rscript ./inst/scripts/update-publications-ad.R --grant_table syn17024229 --parent syn20463015 --pub_table syn20448807 --auth_token SYNAPSE_AUTH_TOKEN
+          Rscript ./inst/scripts/update-publications-ad.R --grant_table syn17024229 --parent syn20463015 --pub_table syn20448807 --auth_token $SYNAPSE_AUTH_TOKEN
