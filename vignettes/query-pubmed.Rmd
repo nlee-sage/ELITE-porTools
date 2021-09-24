@@ -55,6 +55,8 @@ I am keeping an eye out for weird edge cases. These (hacky) steps clean some mis
 dat$title <- gsub("<i>|</i>", "", dat$title)
 dat$authors <- gsub("NA", "", dat$authors)
 dat$entity_name <- gsub("NA ", "", dat$entity_name)
+dat$journal <- remove_unacceptable_characters(dat$journal)
+dat$entity_name <- remove_unacceptable_characters(dat$entity_name)
 ```
 
 `set_up_multiannotations` parses comma-separated lists to be stored correctly in Synapse as multi-value annotations. Then, study and grant annotations are joined to the Pubmed queries.
