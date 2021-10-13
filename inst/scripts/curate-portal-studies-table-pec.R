@@ -65,7 +65,7 @@ updated <- coalesceJoin(to_update, table, by = "key", join = full_join)
 updated <- rename(updated, study = key)
 
 # NAs must be changed to empty strings
-dat <- df %>% mutate_all(function(x) ifelse(is.na(x),"",x))
+dat <- updated %>% mutate_all(function(x) ifelse(is.na(x),"",x))
 
 # order cards alphabetically
 dat <- dat[order(dat$studyName),]
