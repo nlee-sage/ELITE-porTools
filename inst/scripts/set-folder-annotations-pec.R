@@ -28,7 +28,13 @@ studyDescription <- "The neuronal regulatory elements (NeuRE) study aims to anno
 nucleicAcidSource <- c("single cell", "bulk cell")
 # Very case sensitive, look at the existing syntax in the contributing institution facet https://psychencode.synapse.org/Explore/Studies:
 contributingInstitution <- "University of California, San Francisco"
+numberInd <- "16"
+methods <- c("syn21995633", "syn25874242", "syn22098180", "syn26009957")
+relatedStudies <- NA
+# boolean
+modelSystem <- NA
 
+# get folder to set annotations on
 folder <- syn$get_annotations(folder_id)
 folder['phase'] <- phase
 folder['grants'] <- grants
@@ -36,9 +42,22 @@ folder['tissue'] <- tissue
 folder['species'] <- species
 folder['dataTypes'] <- dataTypes
 # conditional
+if (!is.na(numberInd)) {
+  folder['numberOfIndividuals'] <- numberInd
+}
+# conditional
 if (!is.na(diagnosis)) {
   folder['diagnosis'] <- diagnosis
 }
+# conditional
+if (!is.na(relatedStudies)) {
+  folder['relatedStudies'] <- relatedStudies
+}
+# conditional
+if (!is.na(modelSystem)) {
+  folder['isModelSystem'] <- modelSystem
+}
+folder['methods'] <- methods
 folder['studyType'] <- studyType
 folder['studyDescription'] <- studyDescription
 folder['contributingInstitution'] <- contributingInstitution
