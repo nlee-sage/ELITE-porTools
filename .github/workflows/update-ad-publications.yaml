@@ -2,13 +2,12 @@ name: "Update AD Publications"
 
 on:
   schedule:
-    - cron: "0 23 * * 2"
+    - cron: "0 18 * * 4"
 
 env:
   RETICULATE_AUTOCONFIGURE: 'FALSE'
   R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
-  SYNAPSE_AUTH_TOKEN: ${{ secrets.SYNAPSE_PAT }}
-  GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   update-ad-publications:
