@@ -2,7 +2,7 @@ name: "Update AD Publications"
 
 on:
   schedule:
-    - cron: "0 18 * * 4"
+    - cron: "0 0 1 * *"
 
 env:
   RETICULATE_AUTOCONFIGURE: 'FALSE'
