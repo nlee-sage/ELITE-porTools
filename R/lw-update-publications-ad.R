@@ -22,6 +22,9 @@
 library("dplyr")
 library("optparse")
 library("porTools")
+library("rentrez")
+library("purrr")
+library("stringr")
 ## Required, but not fully loaded
 ## readr, reticulate, glue, easyPubMed, dccvalidator
 
@@ -85,14 +88,15 @@ grants <- grants[!(grants$grantSerialNumber %in% c(NaN, NA, "")), ]
 
 ## Query and clean up --------------------------------------------
 
-# FIXME: dat <- query_list_general(grants$grantSerialNumber)
-# INPUT: grantsSerialNumber (grant unique ID)
-# OUTPUT : a large dataframe
-          # Each row is a publication
-          # cols are pmid, doi, title, abstract, year, journal, entity_name (see entity name function),
-          # authors, query (grantSerialNumber)
+# unlist list of grant serial numbers into a vector
 grantserialnumbers <- unlist(grants$grantSerialNumber)
+# run all grant serial numbers through query pubmed
+# returns a tibble
+  # each row is a publication
+  # columns include grantserialnumber, pubmed id, publication date, title, full journal name, doi, authors
 dat <- query_pubmed(grantserialnumbers)
 
-
+# clean up pubmed query results
+# this function pulls out the year from pubdate and adds entity_name column
+dat <- clean_pubmed(dat)
 

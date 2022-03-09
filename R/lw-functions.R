@@ -1,9 +1,3 @@
-### REWORK
-# dat <- query_list_general(grants$grantSerialNumber)
-# FIXME: Use rentrez instead of easyPubMed
-# FIXME: More useful messaging to the consol (what is happening while we wait?)
-# FIXME: Move away from nested structure if possible. Hard to debug.
-
 #' Query PubMed for Publication Metadata
 #'
 #' @param grant_serial_nums A vector of grant unique IDs.
@@ -17,8 +11,10 @@ query_pubmed <- function(grant_serial_nums) {
   # query pubmed using the pubmed ids collected above and parse for important metadata
   # output dataframe with important metadata
   metadata_df <- pub_query(pub_pmids_list)
+
   return(metadata_df)
 }
+
 #' Query Grant Serial Numbers
 #'
 #' @param grant_serial_nums A vector of grant unique IDs.
@@ -47,16 +43,17 @@ grant_query <- function(grant_serial_nums, max = 99999) {
 #' Query Publications PubMed IDs
 #'
 #' @param pub_pmids A list of vectors of pubmed IDs.
-#' @return Vector of integer Pubmed IDs associated with the query.
+#' @return A dataframe where each column corresponds to a publication and contains useful metadata (pmid, doi, title, pubdate, journal, grant serial number)
 
-# Takes a list of publication pmids and pulls metadata
-# outputs: pmid, doi, title, abstract, year, journal, entity_name (see entity name function)
 pub_query <- function(pub_pmids_list) {
   # for each element in pub_pmids get summary info for all pmids
-  # returns a large list of summary information per
+  # returns a large list of dataframes where each df contains metadata about publications associated with a grant
   pub_summary_list <- lapply(seq_along(pub_pmids_list), function(i) {
+
     message(paste0("fetching summary obj for ", names(pub_pmids_list)[[i]]))
 
+    # search pubmed using pubmed IDs assocaited with each grant
+    # if the search errors out output an NA
     summary_obj_list <- tryCatch({
       rentrez::entrez_summary(db = "pubmed",
                               id = pub_pmids_list[[i]],
@@ -65,13 +62,14 @@ pub_query <- function(pub_pmids_list) {
         return(NA)
         })
 
-    # parse summary object list
+    # parse summary object list, output a dataframe
     # this function can handle NA input
     metadata_df <- suppressWarnings(parse_summary_obj_list(summary_obj_list))
 
   })
 
   # name pub_summary_list
+  # this is required for bind_rows to work properly
   names(pub_summary_list) <- names(pub_pmids_list)
 
   # collapse list of dataframes into a single df
@@ -152,23 +150,60 @@ parse_summary_obj_list <- function(summary_obj_list) {
   return(out)
 }
 
+#' Clean PubMed Query Output
+#' PubMed query output still needs some finishing touches. Get date from pubdate, create entity names, etc.
+#'
+#' @param df metadata dataframe output from \code{query_pubmed}.
+#' @return cleaned results data frame
+#' @export
+
+clean_pubmed <- function(dat) {
+  # get year from date by extracting all four char strings from pubdate
+  # make entity names
+  dat <- dat %>%
+    mutate(year = stringr::str_extract(dat$pubdate, "\\d{4}"),
+           entity_name = make_entity_name(.))
+  # TODO adjust colnames to match?
+
+  return(dat)
+}
+
 #' Make Entity Names
 #' Set first author, journal, year and Pubmed ID as the Synapse entity name.
 #'
-#' @param df Data frame from \code{"easyPubMed::article_to_df()"}.
-#' @export
+#' @param dat metadata dataframe output from \code{query_pubmed()}.
+#' @return vector of entity names
 
-# this function is from an earlier version of this script
-make_entity_name <- function(df){
-  first <- df[1,]
+# this function adapted from an earlier version of this script
+make_entity_name <- function(dat){
+  first_author <- get_first_author(dat$authors)
   # Entity names must be < 256 characters; shorten author, journal section
   # Need to leave space for year and pubmed ID
   # Arbitrarily set to 200 characters
   short_name <- stringr::str_trunc(
-    glue::glue("{first$lastname} {first$journal}"),
+    glue::glue("{first_author} {dat$fulljournalname}"),
     width = 200
   )
-  name <- glue::glue("{short_name} {first$year} (Pubmed ID {first$pmid})")
-  df <- dplyr::mutate(df, entity_name = name)
-  df
+
+  # glue together short name, year, and pubmed id
+  name <- glue::glue("{short_name} {dat$year} (Pubmed ID {dat$pmid})")
+
+  return(name)
+}
+
+#' Get First Author
+#' Munge author string to pull out only the first authors last name
+#'
+#' @param author_strings vector of authors from \code{query_pubmed()} output.
+#' @return vector of author first names
+
+get_first_author <- function(author_strings) {
+  # split author string on comma
+  authors_split <- strsplit(author_strings, ", ")
+  # pull out first author from each list element
+  first_authors <- sapply(authors_split, function(x) x[1])
+  # remove first name initial
+  first_authors_split <- strsplit(first_authors, " ")
+  first_authors_last <- sapply(first_authors_split, function(x) x[1])
+  return(first_authors_last)
 }
