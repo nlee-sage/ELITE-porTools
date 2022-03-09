@@ -73,7 +73,7 @@ pub_query <- function(pub_pmids_list) {
   names(pub_summary_list) <- names(pub_pmids_list)
 
   # collapse list of dataframes into a single df
-  bind_rows(pub_summary_list, .id = "grantserialnumber")
+  bind_rows(pub_summary_list, .id = "grantSerialNumber")
 }
 
 #' Parse Summary Obj
@@ -150,14 +150,14 @@ parse_summary_obj_list <- function(summary_obj_list) {
   return(out)
 }
 
-#' Clean PubMed Query Output
+#' Munge PubMed Query Output
 #' PubMed query output still needs some finishing touches. Get date from pubdate, create entity names, etc.
 #'
 #' @param df metadata dataframe output from \code{query_pubmed}.
 #' @return cleaned results data frame
 #' @export
 
-clean_pubmed <- function(dat) {
+munge_pubmed <- function(dat) {
   # get year from date by extracting all four char strings from pubdate
   # then make entity names using first author, journalname, year, and pmid
   dat <- dat %>%
