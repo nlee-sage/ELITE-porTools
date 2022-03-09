@@ -159,17 +159,17 @@ parse_summary_obj_list <- function(summary_obj_list) {
 
 clean_pubmed <- function(dat) {
   # get year from date by extracting all four char strings from pubdate
-  # make entity names
+  # then make entity names using first author, journalname, year, and pmid
   dat <- dat %>%
-    mutate(year = stringr::str_extract(dat$pubdate, "\\d{4}"),
-           entity_name = make_entity_name(.))
+    mutate(year = stringr::str_extract(dat$pubdate, "\\d{4}")) %>%
+    mutate(entity_name = make_entity_name(.))
   # TODO adjust colnames to match?
 
   return(dat)
 }
 
 #' Make Entity Names
-#' Set first author, journal, year and Pubmed ID as the Synapse entity name.
+#' Paste together first author, journal, year and Pubmed ID as the Synapse entity name.
 #'
 #' @param dat metadata dataframe output from \code{query_pubmed()}.
 #' @return vector of entity names
