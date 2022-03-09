@@ -28,6 +28,10 @@ library("stringr")
 ## Required, but not fully loaded
 ## readr, reticulate, glue, easyPubMed, dccvalidator
 
+#### FOR TESTING
+
+
+
 ## Setup -----------------------------------------------------------------------
 
 # nolint start
@@ -74,29 +78,74 @@ if(!is.na(opts$auth_token)) {
   syn$login()
 }
 
-## Grab grants ---------------------------------------------------
+## Grab grants ------------------------------------------------------
 
+# qury synapse
 grants <- syn$tableQuery(
   glue::glue(
     "SELECT \"Grant Number\", grantSerialNumber, Program ",
     "FROM {opts$grant_table}"
   )
 )$asDataFrame()
-## grantSerialNumber becomes the query
-## Remove rows that have NaN or NA or empty string for the serial number
+
+# Remove rows that have NaN or NA or empty string for the serial number
 grants <- grants[!(grants$grantSerialNumber %in% c(NaN, NA, "")), ]
 
-## Query and clean up --------------------------------------------
+## Query PubMed -----------------------------------------------------
 
 # unlist list of grant serial numbers into a vector
 grantserialnumbers <- unlist(grants$grantSerialNumber)
+
 # run all grant serial numbers through query pubmed
 # returns a tibble
   # each row is a publication
   # columns include grantserialnumber, pubmed id, publication date, title, full journal name, doi, authors
 dat <- query_pubmed(grantserialnumbers)
 
-# clean up pubmed query results
-# this function pulls out the year from pubdate and adds entity_name column
-dat <- clean_pubmed(dat)
+## Clean up ---------------------------------------------------------
 
+# munge pubmed query results
+# this function pulls out the year from pubdate and adds entity_name column
+dat <- munge_pubmed(dat)
+
+# For some reason, grantSerialNumber isn't always a character
+grants$grantSerialNumber <- as.character(grants$grantSerialNumber)
+
+# Merge dat and grants table by grantSerialNumber
+dat <- dplyr::right_join(grants, dat, by = "grantSerialNumber")
+
+# Some pubmedIDs show up multiple times under different grants
+# Need to capture this information in a single row of information
+# instead of having multiple entries for a publication
+
+dat <- dat %>%
+  # for each pubmedID
+  group_by(pmid) %>%
+  mutate(
+    # Create a new column that captures all grants that duplicate pmid is associated with
+    grant = glue::glue_collapse(unique(.data$`Grant Number`), ", ")
+  ) %>%
+  # Create a new column that captures all programs that duplicate pmid is associated with
+  mutate(consortium = glue::glue_collapse(unique(.data$Program), ", ")) %>%
+  # drop Grant Number, Program, and GrantSerialNumber cols
+  select(!c(`Grant Number`, Program, grantSerialNumber)) %>%
+  # rename some columns
+  rename(pubmed_id = pmid, DOI = doi, Program = consortium, journal = fulljournalname) %>%
+  # keep only distinct rows
+  distinct()
+
+# Hacky cleaning
+## Included in hacky_cleaning is conversion to ascii and removing html formatting
+dat$title <- hacky_cleaning(dat$title)
+dat$authors <- hacky_cleaning(dat$authors)
+dat$journal <- hacky_cleaning(dat$journal)
+
+# Remove common, unallowed characters from entity name; includes hacky_cleaning
+dat$entity_name <- remove_unacceptable_characters(dat$entity_name)
+
+
+##### TODO:
+##### - Set up multiannotation columns
+#####   - what does this function do?
+#####   - does it need to be cleaned up?
+##### - Double check that output what they are looking for before upload?
