@@ -29,7 +29,7 @@ grant_query <- function(grant_serial_nums, max = 99999) {
     # search pubmed by grant serial number
     # returns list of esearch objs with pubi
     search_res <- rentrez::entrez_search(db = "pubmed",
-                                         term = paste0(grant_serial_nums[1], "[GRNT]"),
+                                         term = paste0(grant_serial_nums[i], "[GRNT]"),
                                          retstart = 0,
                                          retmax = max)
     setTxtProgressBar(pb, i)
