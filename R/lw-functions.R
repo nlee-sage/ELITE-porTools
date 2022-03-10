@@ -73,6 +73,7 @@ pub_query <- function(pub_pmids_list) {
     # this function can handle NA input
     metadata_df <- suppressWarnings(parse_summary_obj_list(summary_obj_list))
     setTxtProgressBar(pb, i)
+    return(metadata_df)
   })
 
   # name pub_summary_list
