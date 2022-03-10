@@ -88,19 +88,19 @@ grants <- syn$tableQuery(
   )
 )$asDataFrame()
 
-# Remove rows that have NaN or NA or empty string for the serial number
+# remove rows that have NaN or NA or empty string for the serial number
 grants <- grants[!(grants$grantSerialNumber %in% c(NaN, NA, "")), ]
 
 ## Query PubMed -----------------------------------------------------
 
 # unlist list of grant serial numbers into a vector
-grantserialnumbers <- unlist(grants$grantSerialNumber)
+grant_serial_nums <- unlist(grants$grantSerialNumber)
 
 # run all grant serial numbers through query pubmed
 # returns a tibble
   # each row is a publication
   # columns include grantserialnumber, pubmed id, publication date, title, full journal name, doi, authors
-dat <- query_pubmed(grantserialnumbers)
+dat <- query_pubmed(grant_serial_nums)
 
 ## Clean up ---------------------------------------------------------
 
@@ -111,12 +111,11 @@ dat <- munge_pubmed(dat)
 # For some reason, grantSerialNumber isn't always a character
 grants$grantSerialNumber <- as.character(grants$grantSerialNumber)
 
-# Merge dat and grants table by grantSerialNumber
+# Join dat and grants table by grantSerialNumber
 dat <- dplyr::right_join(grants, dat, by = "grantSerialNumber")
 
 # Some pubmedIDs show up multiple times under different grants
-# Need to capture this information in a single row of information
-# instead of having multiple entries for a publication
+# Need to capture this information in a single row of information so it isn't duplicated
 
 dat <- dat %>%
   # for each pubmedID
@@ -143,9 +142,16 @@ dat$journal <- hacky_cleaning(dat$journal)
 # Remove common, unallowed characters from entity name; includes hacky_cleaning
 dat$entity_name <- remove_unacceptable_characters(dat$entity_name)
 
+# Set up multi-annotation columns correctly
+dat <- set_up_multiannotations(dat, "grant")
+dat <- set_up_multiannotations(dat, "Program")
 
-##### TODO:
-##### - Set up multiannotation columns
-#####   - what does this function do?
-#####   - does it need to be cleaned up?
-##### - Double check that output what they are looking for before upload?
+## Store publications --------------------------------------------
+
+dat_list <- purrr::transpose(dat)
+store_as_annotations(parent = opts$parent, dat_list)
+
+## Force file view update
+if (!is.na(opts$pub_table)) {
+  syn$tableQuery(glue::glue("SELECT * FROM {opts$pub_table}"))
+}
