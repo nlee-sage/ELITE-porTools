@@ -21,15 +21,18 @@ query_pubmed <- function(grant_serial_nums) {
 #' @param max Number of results to return. Maxes out at 99999.
 #' @return A list of vectors of publication PubMed IDs for each grant serial number supplied.
 grant_query <- function(grant_serial_nums, max = 99999) {
+  message("Getting publication PubMed IDs associated with provided grants")
+  # initialize progress bar
+  pb <- txtProgressBar(min = 0, max = length(grant_serial_nums), style = 3)
   # iterate over vector of grant serial numbers
-  pub_pmids <- lapply(grant_serial_nums, function(uid) {
-    message(paste0("Getting publication pmids for grant serial number: ", uid))
+  pub_pmids <- lapply(seq_along(grant_serial_nums), function(i) {
     # search pubmed by grant serial number
     # returns list of esearch objs with pubi
     search_res <- rentrez::entrez_search(db = "pubmed",
-                                         term = paste0(uid, "[GRNT]"),
+                                         term = paste0(grant_serial_nums[1], "[GRNT]"),
                                          retstart = 0,
                                          retmax = max)
+    setTxtProgressBar(pb, i)
     search_res$ids
     })
 
@@ -46,11 +49,15 @@ grant_query <- function(grant_serial_nums, max = 99999) {
 #' @return A dataframe where each column corresponds to a publication and contains useful metadata (pmid, doi, title, pubdate, journal, grant serial number)
 
 pub_query <- function(pub_pmids_list) {
+  message("Querying PubMed for Publication Metadata")
+
+  # initialize progress bar
+  total <- length(pub_pmids_list)
+  pb <- txtProgressBar(min = 0, max = total, style = 3)
+
   # for each element in pub_pmids get summary info for all pmids
   # returns a large list of dataframes where each df contains metadata about publications associated with a grant
   pub_summary_list <- lapply(seq_along(pub_pmids_list), function(i) {
-
-    message(paste0("fetching summary obj for ", names(pub_pmids_list)[[i]]))
 
     # search pubmed using pubmed IDs assocaited with each grant
     # if the search errors out output an NA
@@ -65,7 +72,7 @@ pub_query <- function(pub_pmids_list) {
     # parse summary object list, output a dataframe
     # this function can handle NA input
     metadata_df <- suppressWarnings(parse_summary_obj_list(summary_obj_list))
-
+    setTxtProgressBar(pb, i)
   })
 
   # name pub_summary_list
@@ -93,7 +100,7 @@ parse_summary_obj_list <- function(summary_obj_list) {
     # pull out author and doi (nested dataframes)
     author_doi_list <- lapply(seq_along(summary_obj_list), function(i) {
 
-      message(paste0("parsing pub: ", summary_obj_list[[i]]["uid"]))
+      #message(paste0("parsing pub: ", summary_obj_list[[i]]["uid"]))
 
       summary_obj <- summary_obj_list[[i]]
       # get author df
