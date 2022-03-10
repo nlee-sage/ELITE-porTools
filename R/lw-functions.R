@@ -8,6 +8,8 @@
 query_pubmed <- function(grant_serial_nums) {
   # query pubmed using grant unique ID for the pmid of each publication associated with the grant
   pub_pmids_list <- grant_query(grant_serial_nums)
+  # Make some space in the console
+  message("\n\n")
   # query pubmed using the pubmed ids collected above and parse for important metadata
   # output dataframe with important metadata
   metadata_df <- pub_query(pub_pmids_list)
@@ -34,7 +36,7 @@ grant_query <- function(grant_serial_nums, max = 99999) {
                                          retmax = max)
     setTxtProgressBar(pb, i)
     search_res$ids
-    })
+  })
 
   # name list elements
   names(pub_pmids) <- grant_serial_nums
@@ -65,9 +67,9 @@ pub_query <- function(pub_pmids_list) {
       rentrez::entrez_summary(db = "pubmed",
                               id = pub_pmids_list[[i]],
                               always_return_list = TRUE)
-      }, error = function(e) {
-        return(NA)
-        })
+    }, error = function(e) {
+      return(NA)
+    })
 
     # parse summary object list, output a dataframe
     # this function can handle NA input
