@@ -28,4 +28,4 @@ Imports:
 Suggests:
   optparse
 SystemRequirements: synapseclient (pypi.org/project/synapseclient)
-RoxygenNote: 7.1.1
+RoxygenNote: 7.1.2
