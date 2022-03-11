@@ -6,10 +6,13 @@
 #' @export
 
 query_pubmed <- function(grant_serial_nums) {
+
   # query pubmed using grant unique ID for the pmid of each publication associated with the grant
   pub_pmids_list <- grant_query(grant_serial_nums)
+
   # Make some space in the console
   message("\n\n")
+
   # query pubmed using the pubmed ids collected above and parse for important metadata
   # output dataframe with important metadata
   metadata_df <- pub_query(pub_pmids_list)
@@ -22,20 +25,28 @@ query_pubmed <- function(grant_serial_nums) {
 #' @param grant_serial_nums A vector of grant unique IDs.
 #' @param max Number of results to return. Maxes out at 99999.
 #' @return A list of vectors of publication PubMed IDs for each grant serial number supplied.
+
 grant_query <- function(grant_serial_nums, max = 99999) {
+
   message("Getting publication PubMed IDs associated with provided grants")
+
   # initialize progress bar
   pb <- txtProgressBar(min = 0, max = length(grant_serial_nums), style = 3)
+
   # iterate over vector of grant serial numbers
   pub_pmids <- lapply(seq_along(grant_serial_nums), function(i) {
+
     # search pubmed by grant serial number
-    # returns list of esearch objs with pubi
+    # returns list of esearch objs with pubIDs that match that serial number
     search_res <- rentrez::entrez_search(db = "pubmed",
                                          term = paste0(grant_serial_nums[i], "[GRNT]"),
                                          retstart = 0,
                                          retmax = max)
+    # +1 on the progress bar
     setTxtProgressBar(pb, i)
-    search_res$ids
+
+    # return IDs
+    return(search_res$ids)
   })
 
   # name list elements
@@ -116,6 +127,9 @@ parse_summary_obj_list <- function(summary_obj_list) {
         authors_df <- authors_df[grepl("Author", authors_df$authtype),]
         # collapse author names, separate by ,
         authors_string <- paste0(authors_df$name, collapse = ", ")
+        # run author string through stri_trans_general
+        # this should convert all accented characters to plain text
+        authors_string <- stringi::stri_trans_general(authors_string, "Latin-ASCII")
       }
 
       # get article IDs df (contains doi)
