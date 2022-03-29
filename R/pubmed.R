@@ -45,6 +45,9 @@ grant_query <- function(grant_serial_nums, max = 99999) {
     # +1 on the progress bar
     setTxtProgressBar(pb, i)
 
+    # sleep for a second so as to not hit NCBI rate limit
+    Sys.sleep(0.1)
+
     # return IDs
     return(search_res$ids)
   })
@@ -85,7 +88,13 @@ pub_query <- function(pub_pmids_list) {
     # parse summary object list, output a dataframe
     # this function can handle NA input
     metadata_df <- suppressWarnings(parse_summary_obj_list(summary_obj_list))
+
+    # +1 progress bar
     setTxtProgressBar(pb, i)
+
+    # add some sleep time
+    Sys.sleep(0.1)
+
     return(metadata_df)
   })
 

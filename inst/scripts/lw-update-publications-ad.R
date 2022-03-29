@@ -28,10 +28,6 @@ library("stringr")
 ## Required, but not fully loaded
 ## readr, reticulate, glue, easyPubMed, dccvalidator
 
-#### FOR TESTING
-
-
-
 ## Setup -----------------------------------------------------------------------
 
 # nolint start
