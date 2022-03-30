@@ -17,6 +17,9 @@ query_pubmed <- function(grant_serial_nums) {
   # output dataframe with important metadata
   metadata_df <- pub_query(pub_pmids_list)
 
+  # Make some space in the console
+  message("\n\n")
+
   return(metadata_df)
 }
 
