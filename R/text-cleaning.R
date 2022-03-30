@@ -68,6 +68,7 @@ hacky_cleaning <- function(text) {
   conv <- remove_hmtl_formatting(text = conv)
   conv <- gsub("&amp;|amp;", "and", conv)
   conv <- gsub("&#39;|&quot;", "'", conv)
-  gsub("&gt;", "Greater Than ", conv)
+  conv <- gsub("&gt;", "Greater Than ", conv)
+  conv <- str_trunc(text, width = 500)
   return(conv)
 }
