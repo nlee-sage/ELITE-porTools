@@ -20,6 +20,6 @@ plus signs, apostrophes, and parentheses. Anything outside of this list is
 considered an 'unacceptable character'. This will fix anything included in
 [porTools::hacky_cleaning()].
 Additionally, it will fix ':' (replaced with hyphen),
-';' (replaced with period), '/' (replaced with space), ',' (removed), and
-'&amp;', '&', amp;' (all replaced with 'and').
+';' (replaced with period), '/' (replaced with space), ',' (removed),
+square brackets (removed), and &amp;', '&', amp;' (all replaced with 'and').
 }
