@@ -37,8 +37,8 @@ remove_hmtl_formatting <- function(text) {
 #' considered an 'unacceptable character'. This will fix anything included in
 #' [porTools::hacky_cleaning()].
 #' Additionally, it will fix ':' (replaced with hyphen),
-#' ';' (replaced with period), '/' (replaced with space), ',' (removed), and
-#' '&amp;', '&', amp;' (all replaced with 'and').
+#' ';' (replaced with period), '/' (replaced with space), ',' (removed),
+#' square brackets (removed), and &amp;', '&', amp;' (all replaced with 'and').
 #'
 #' @export
 #' @param text String, or vector of strings, that might have
@@ -51,6 +51,8 @@ remove_unacceptable_characters <- function(text) {
   conv <- gsub(";", ".", conv)
   conv <- gsub("/", " ", conv)
   conv <- gsub(",", "", conv)
+  conv <- gsub("\\]", "", conv)
+  conv <- gsub("\\[", "", conv)
   return(conv)
 }
 #' Clean up funky text
