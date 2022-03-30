@@ -138,6 +138,14 @@ dat$journal <- hacky_cleaning(dat$journal)
 # Remove common, unallowed characters from entity name; includes hacky_cleaning
 dat$entity_name <- remove_unacceptable_characters(dat$entity_name)
 
+## Remove row of NA
+# See this (https://github.com/Sage-Bionetworks/porTools/issues/10#issuecomment-1083441995) issue comment for more info
+# TODO: Figure out why this is happening
+# capture cases where pubmed ID is NA
+idx <- is.na(dat$pubmed_id)
+# only keep cases where pubmed ID is not NA
+dat <- dat[!idx,]
+
 # Set up multi-annotation columns correctly
 dat <- set_up_multiannotations(dat, "grant")
 dat <- set_up_multiannotations(dat, "Program")
