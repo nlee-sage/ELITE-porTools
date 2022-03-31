@@ -30,27 +30,3 @@ set_up_multiannotations <- function(df, value) {
   df[[rlang::as_string(value)]] <- vec
   df
 }
-
-##### lw note: is this function actually ever called? If not we could remove...
-
-#' Get Synapse table
-#'
-#' Get the contents of a Synapse table as a data frame and preserve the row IDs.
-#'
-#' @param synID The Synapse ID of a table to query from. Defaults to
-#'   "syn10242922"
-#' @param syn Synapse client object
-#' @return Data frame of table contents
-#' @export
-get_synapse_table_rows <- function(synID, syn) {
-  query_result <- syn$tableQuery(
-    glue::glue("select * from {synID}"),
-    includeRowIdAndRowVersion = TRUE
-  )
-  dat <- utils::read.csv(
-    query_result$filepath,
-    na.strings = "",
-    stringsAsFactors = FALSE
-  )
-  dat
-}
