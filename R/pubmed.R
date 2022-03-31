@@ -106,7 +106,7 @@ pub_query <- function(pub_pmids_list) {
   names(pub_summary_list) <- names(pub_pmids_list)
 
   # collapse list of dataframes into a single df
-  bind_rows(pub_summary_list, .id = "grantSerialNumber")
+  dplyr::bind_rows(pub_summary_list, .id = "grantSerialNumber")
 }
 
 #' Parse Summary Obj
@@ -171,7 +171,7 @@ parse_summary_obj_list <- function(summary_obj_list) {
 
     # bind together summary dataframe and author/doi dataframe
     # remove first row of summary df
-    out <- bind_cols(summary_df[,-1], author_doi_df)
+    out <- dplyr::bind_cols(summary_df[,-1], author_doi_df)
   } else {
     out <- tibble(
       pmid = NA,
@@ -197,8 +197,8 @@ munge_pubmed <- function(dat) {
   # get year from date by extracting all four char strings from pubdate
   # then make entity names using first author, journalname, year, and pmid
   dat <- dat %>%
-    mutate(year = stringr::str_extract(dat$pubdate, "\\d{4}")) %>%
-    mutate(entity_name = make_entity_name(.))
+    dplyr::mutate(year = stringr::str_extract(dat$pubdate, "\\d{4}")) %>%
+    dplyr::mutate(entity_name = make_entity_name(.))
   # TODO adjust colnames to match?
 
   return(dat)
