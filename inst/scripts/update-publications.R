@@ -22,6 +22,9 @@
 library("dplyr")
 library("optparse")
 library("porTools")
+library("rentrez")
+library("purrr")
+library("stringr")
 ## Required, but not fully loaded
 ## readr, reticulate, glue, easyPubMed, dccvalidator
 
@@ -71,49 +74,79 @@ if(!is.na(opts$auth_token)) {
   syn$login()
 }
 
-## Grab grants ---------------------------------------------------
+## Grab grants ------------------------------------------------------
 
+# qury synapse
 grants <- syn$tableQuery(
   glue::glue(
     "SELECT \"Grant Number\", grantSerialNumber, Program ",
     "FROM {opts$grant_table}"
   )
 )$asDataFrame()
-## grantSerialNumber becomes the query
-## Remove rows that have NaN or NA or empty string for the serial number
+
+# remove rows that have NaN or NA or empty string for the serial number
 grants <- grants[!(grants$grantSerialNumber %in% c(NaN, NA, "")), ]
 
-## Query and clean up --------------------------------------------
+## Query PubMed -----------------------------------------------------
 
-dat <- query_list_general(grants$grantSerialNumber)
+# unlist list of grant serial numbers into a vector
+grant_serial_nums <- unlist(grants$grantSerialNumber)
 
-dat <- dat %>%
-  rename(grantSerialNumber = query)
-## For some reason, grantSerialNumber isn't always a character
+# run all grant serial numbers through query pubmed
+# returns a tibble
+  # each row is a publication
+  # columns include grantserialnumber, pubmed id, publication date, title, full journal name, doi, authors
+dat <- query_pubmed(grant_serial_nums)
+
+## Clean up ---------------------------------------------------------
+
+# munge pubmed query results
+# this function pulls out the year from pubdate and adds entity_name column
+dat <- munge_pubmed(dat)
+
+# For some reason, grantSerialNumber isn't always a character
 grants$grantSerialNumber <- as.character(grants$grantSerialNumber)
+
+# Join dat and grants table by grantSerialNumber
 dat <- dplyr::right_join(grants, dat, by = "grantSerialNumber")
-## Need to remove duplicates, but keep all grants and consortium
-## Includes some renaming and dropping of columns
+
+# Some pubmedIDs show up multiple times under different grants
+# Need to capture this information in a single row of information so it isn't duplicated
+
 dat <- dat %>%
+  # for each pubmedID
   group_by(pmid) %>%
   mutate(
+    # Create a new column that captures all grants that duplicate pmid is associated with
     grant = glue::glue_collapse(unique(.data$`Grant Number`), ", ")
   ) %>%
+  # Create a new column that captures all programs that duplicate pmid is associated with
   mutate(consortium = glue::glue_collapse(unique(.data$Program), ", ")) %>%
+  # drop Grant Number, Program, and GrantSerialNumber cols
   select(!c(`Grant Number`, Program, grantSerialNumber)) %>%
-  rename(pubmed_id = pmid, DOI = doi, Program = consortium) %>%
+  # rename some columns
+  rename(pubmed_id = pmid, DOI = doi, Program = consortium, journal = fulljournalname) %>%
+  # keep only distinct rows
   distinct()
 
-## Hacky cleaning
+# Hacky cleaning
 ## Included in hacky_cleaning is conversion to ascii and removing html formatting
 dat$title <- hacky_cleaning(dat$title)
 dat$authors <- hacky_cleaning(dat$authors)
 dat$journal <- hacky_cleaning(dat$journal)
-dat$abstract <- hacky_cleaning(dat$abstract)
-## Remove common, unallowed characters from entity name; includes hacky_cleaning
+
+# Remove common, unallowed characters from entity name; includes hacky_cleaning
 dat$entity_name <- remove_unacceptable_characters(dat$entity_name)
 
-## Set up multi-annotation columns correctly
+## Remove row of NA
+# See this (https://github.com/Sage-Bionetworks/porTools/issues/10#issuecomment-1083441995) issue comment for more info
+# TODO: Figure out why this is happening
+# capture cases where pubmed ID is NA
+idx <- is.na(dat$pubmed_id)
+# only keep cases where pubmed ID is not NA
+dat <- dat[!idx,]
+
+# Set up multi-annotation columns correctly
 dat <- set_up_multiannotations(dat, "grant")
 dat <- set_up_multiannotations(dat, "Program")
 
