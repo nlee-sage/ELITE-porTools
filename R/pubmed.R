@@ -115,11 +115,8 @@ pub_query <- function(pub_pmids_list) {
 #' @return dataframe containing authors and doi for each summary object in the list.
 #'
 
-# TODO FIX WARNGING : In if (suppressWarnings(!is.na(summary_obj_list))) { :
-# the condition has length > 1 and only the first element will be used
-
 parse_summary_obj_list <- function(summary_obj_list) {
-  # check that summary objec is not NA
+  # check that at least one element of summary object is not NA
   # pull out author doi
   if (any(!is.na(summary_obj_list))) {
 
