@@ -121,7 +121,7 @@ pub_query <- function(pub_pmids_list) {
 parse_summary_obj_list <- function(summary_obj_list) {
   # check that summary objec is not NA
   # pull out author doi
-  if (!is.na(summary_obj_list)){
+  if (any(!is.na(summary_obj_list))) {
 
     # pull out author and doi (nested dataframes)
     author_doi_list <- lapply(seq_along(summary_obj_list), function(i) {
