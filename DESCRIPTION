@@ -17,7 +17,6 @@ LazyData: true
 Imports:
     dccvalidator,
     dplyr,
-    easyPubMed,
     glue,
     purrr,
     readr,
