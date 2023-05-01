@@ -1,12 +1,12 @@
 #!/usr/bin/Rscript
 
 #######################################################
-##      Update AD Knowledge Portal Publications      ##
+##      Update ELITE Portal Publications             ##
 ##                                                   ##
 ## Description:                                      ##
 ##   Query PubMed for publications and upload        ##
 ##   results to Synapse in the format required by    ##
-##   the AD Knowledge Portal                         ##
+##   the ELITE Portal                                ##
 ##                                                   ##
 ## Usage:                                            ##
 ##   Rscript update-publications-ad.R \              ##

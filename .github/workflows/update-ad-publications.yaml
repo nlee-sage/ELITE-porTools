@@ -48,11 +48,11 @@ jobs:
         run: |
           Rscript -e "reticulate::py_discover_config()"
           Rscript -e "reticulate::py_install(c('pandas', 'numpy', 'boto3', 'synapseclient'), pip = TRUE)"
-      
+
       - name: Install porTools
         run: |
           Rscript -e "remotes::install_github('Sage-Bionetworks/porTools')"
-      
+
       - name: Query PubMed and upload results
         run: |
-          Rscript ./inst/scripts/update-publications-ad.R --grant_table syn17024229 --parent syn20463015 --pub_table syn20448807 --auth_token ${{ secrets.SYNAPSE_PAT }}
+          Rscript ./inst/scripts/update-publications-ad.R --grant_table syn51209786 --parent syn51400816 --pub_table syn51407023 --auth_token ${{ secrets.SYNAPSE_PAT }}

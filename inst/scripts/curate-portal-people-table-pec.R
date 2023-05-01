@@ -22,7 +22,7 @@ make_df <- function(list, column_name) {
   df
 }
 ###
-people <- read_csv(syn$tableQuery("Select * from syn22096112")$filepath)
+people <- read_csv(syn$tableQuery("Select * from syn22096112")$filepath) # table to portal - people
 team <- syn$getTeamMembers("3323356")
 list <- reticulate::iterate(team)
 member <- map(list, ~.$get("member"))

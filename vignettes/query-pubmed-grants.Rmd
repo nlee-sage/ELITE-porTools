@@ -7,16 +7,20 @@ output: html_document
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-library(dccvalidator)
+
+
+knitr::opts_chunk$set(echo = TRUE)
+# library(dccvalidator)
 library(dplyr)
 library(easyPubMed)
 library(readr)
 library(reticulate)
-library(porTools)
-synapseclient <- reticulate::import("synapseclient")
-syntab <- reticulate::import("synapseclient.table")
-syn <- synapseclient$Synapse()
-syn$login()
+library(synapser)
+# library(porTools)
+
+source("~/Projects/ELITE/porTools/R/pubmed.R")
+
+synLogin()
 ```
 
 ## Query Pubmed and store data as file annotations
@@ -32,7 +36,7 @@ tribble(~`Grant Number`, ~grantSerialNumber, ~Program,
 Import the grants with their respective programs and serial numbers.
 
 ```{r vars, echo=FALSE}
-table_id <- "syn17024229"
+table_id <- "syn51209786" # Portal Projects Table
 grants <- syn$tableQuery(
   glue::glue("SELECT \"Grant Number\", grantSerialNumber, Program FROM {table_id}")
 )$asDataFrame()
@@ -51,14 +55,17 @@ Any character vector can be passed to `query_list_general`. This function wraps 
 - creates a *query* column to associate the PubmedId with a specific query
 
 ```{r query, message=FALSE, warning=FALSE}
-dat <- query_list_general(grants$grantSerialNumber)
+dat <- grant_query(grants$grantSerialNumber)
+
+as.data.frame(do.call(cbind, dat))
+as.data.frame(dat)
 ```
 
 Join the grants to the Pubmed queries and clean up.
 
 ```{r query}
-dat <- dat %>%
-  rename(grantSerialNumber = query)
+# dat <- dat %>%
+#   rename(grantSerialNumber = query)
 # For some reason, grantSerialNumber isn't always a character
 grants$grantSerialNumber <- as.character(grants$grantSerialNumber)
 dat <- dplyr::right_join(grants, dat, by = "grantSerialNumber")
