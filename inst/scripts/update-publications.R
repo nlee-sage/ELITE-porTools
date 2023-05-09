@@ -25,6 +25,7 @@ library("porTools")
 library("rentrez")
 library("purrr")
 library("stringr")
+
 ## Required, but not fully loaded
 ## readr, reticulate, glue, easyPubMed, dccvalidator
 
@@ -65,14 +66,7 @@ opts <- parse_args(OptionParser(option_list = option_list))
 # nolint end
 
 ## Synapse client and logging in
-synapseclient <- reticulate::import("synapseclient")
-syntab <- reticulate::import("synapseclient.table")
-syn <- synapseclient$Synapse()
-if(!is.na(opts$auth_token)) {
-  syn$login(authToken = opts$auth_token)
-} else {
-  syn$login()
-}
+source("~/Projects/ELITE/porTools/R/synapseLogin.R")
 
 ## Grab grants ------------------------------------------------------
 

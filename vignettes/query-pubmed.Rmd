@@ -25,7 +25,7 @@ The schema for these steps is *pubmedId*, *grants* and *study*. Theses functions
 a list of PubmedIds and queries the site to pull down title, abstract, authors, journal name, year and DOI. Theses annotations are visible in the [ELITE Portal - Publications View](https://www.synapse.org/#!Synapse:syn51209321/tables/). See the [Explore Publications module](https://psychencode.synapse.org/Explore/Publications) for a visual of how this data is surfaced on the portal.
 
 ```{r query synapse for grants}
-
+sid_elite <- "syn27229419"
 sid_studies <- "syn51209885"
 
 grant_list <-
@@ -34,23 +34,27 @@ grant_list <-
   ))$filepath,
   col_types = readr::cols(.default = "c"))
 
+# cleanup grant list
 grant_list$grantNumber <- gsub('\\[|\\]|\\"',"", as.character(grant_list$grantNumber))
 
+# take only grant number as the grants
 grants <- grant_list$grantNumber
 ```
 
 
 ```{r ex_format, echo = FALSE}
-tribble(~pubmedId, ~grants, ~study,
-        "24057217", "R21MH103877", c("study1,study2")
-        )
+# taking pubmedIDs from file within synapse
+
+# tribble(~pubmedId, ~grants, ~study,
+#         "24057217", "R21MH103877", c("study1,study2")
+#         )
 ```
 
 Import the list of Pubmed Ids and define the Synapse parentId where the file entities will be stored with the Pubmed-relevant annotations.
-
 ```{r vars, echo=FALSE}
 parent <- "syn51400816" # ELITE Portal backend folder for publications
 
+# read pmids file
 pmids <- readr::read_tsv(syn$get("syn22080024")$path, 
                          col_types = readr::cols(.default = "c"))
 ```
@@ -64,7 +68,7 @@ Any character vector can be passed to `query_list_pmids`. This function wraps se
 - creates one row per PubmedId
 
 ```{r query}
-dat <- query_list_pmids(pmids$pubmedId)
+dat <- query_list_pmids(pmid_map$pubmed_Id)
 ```
 
 I am keeping an eye out for weird edge cases. These (hacky) steps clean some missing values and remove extraneous characters.

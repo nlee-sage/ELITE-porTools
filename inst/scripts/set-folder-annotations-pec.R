@@ -4,9 +4,10 @@ library(easyPubMed)
 library(readr)
 library(reticulate)
 library(porTools)
-synapseclient <- reticulate::import("synapseclient")
-syn <- synapseclient$Synapse()
-syn$login()
+
+# Login to synapse
+source("~/Projects/ELITE/porTools/R/synapseLogin.R")
+
 # The study folders get annotated with phase, grants, tissue, species, diagnosis, study type, study description, nucleic acid source and contributing institution.
 #
 # - The keys *grants*, *tissue*, *species*, *diagnosis* and *nucleicAcidSource* follow the constrained vocabulary of the [synapseAnnotations repo](https://github.com/sage-bionetworks/synapseannotations).
