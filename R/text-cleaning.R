@@ -53,6 +53,7 @@ remove_unacceptable_characters <- function(text) {
   conv <- gsub(",", "", conv)
   conv <- gsub("\\]", "", conv)
   conv <- gsub("\\[", "", conv)
+  conv <- gsub("=", "-", conv)
   return(conv)
 }
 #' Clean up funky text

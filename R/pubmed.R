@@ -214,7 +214,7 @@ make_entity_name <- function(dat){
   # Need to leave space for year and pubmed ID
   # Arbitrarily set to 200 characters
   short_name <- stringr::str_trunc(
-    glue::glue("{first_author} {dat$fulljournalname}"),
+    glue::glue("{first_author} {dat$journal}"),
     width = 200
   )
 

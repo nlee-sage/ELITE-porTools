@@ -22,6 +22,7 @@ library(synapser)
 source("~/Projects/ELITE/porTools/R/pubmed.R")
 source("~/Projects/ELITE/porTools/R/text-cleaning.R")
 source("~/Projects/ELITE/porTools/R/annotation.R")
+source("~/Projects/ELITE/porTools/R/globalHardCodedVariables.R")
 
 # Login to synapse
 source("~/Projects/ELITE/porTools/R/synapseLogin.R")
@@ -31,12 +32,6 @@ source("~/Projects/ELITE/porTools/R/synapseLogin.R")
 
 The data needed for these steps are *Grant Number*, *grantSerialNumber* and *Program*. Theses functions take a list of grant serial numbers and queries Pubmed to download title, abstract, authors, journal name, year and DOI. Theses annotations are visible in the [AD Knowledge Portal - Publications View](https://www.synapse.org/#!Synapse:syn20448807/tables/). See the [Explore Publications module](https://adknowledgeportal.synapse.org/Explore/Publications) for a visual of how this data is surfaced on the portal.
 
-```{r ex_format, echo = FALSE}
-# tribble(~`Grant Number`, ~grantSerialNumber, ~Program,
-#         "U01AG046139", "AG046139", "AMP-AD"
-#         )
-```
-
 Import the grants with their respective programs and serial numbers.
 Serial number is the characters after the first three characters till the end e.g. "U19AG063893" -> "AG063893" is the serial number.
 ```{r vars, echo=FALSE}
@@ -44,7 +39,7 @@ table_id <- "syn51209786" # ELITE Portal Projects Table
 
 # Gather list of grants from synapse
 grants <- syn$tableQuery(
-  glue::glue("SELECT \"Grant Number\", grantSerialNumber, Program, Name FROM {table_id}")
+  glue::glue("SELECT grantNumber, grantSerialNumber, program, name FROM {table_id}")
 )$asDataFrame()
 
 # Remove rows that have NaN or NA or empty string for the serial number
@@ -65,7 +60,7 @@ Any character vector can be passed to `query_list_general`. This function wraps 
 ```{r query, message=FALSE, warning=FALSE}
 pubmd_results <- query_pubmed(grants$grantSerialNumber)
 ```
-
+Gathers pmids from pubmed
 ```{r}
 pubmd_results2 <- grant_query(grants$grantSerialNumber)
 ```
@@ -96,43 +91,94 @@ dat <- dat %>%
 
 
 Create the pmid to grant file map. Drop the duplicates found and store in synapse as reference for later updates. 
+Write out pmid dataframe out to csv for loading later
 ```{r}
 pmid_map <- dat %>% select("pubmed_id", "grant", "program", "study")
 
+write.table(pmid_map, '~/Projects/ELITE/publications_pmid_list.txt', row.names = FALSE, sep = "\t")
+
+file <- File(path = "C:/Users/nlee/Documents/Projects/ELITE/publications_pmid_list.txt", parent = 'syn52227310')
+
+file <- synStore(file)
 ```
 
-
 The following has fixes for some of the formatting issues found. It also updates the entity name to remove common, unallowed characters.
+
+```{r}
+#Using rename()
+dat <- dat %>% rename("pmid" = "pubmed_id")
+```
+
+```{r}
+dat$year <- stringr::str_extract(dat$pubdate, "\\d{4}")
+```
+
+```{r}
+hacky_cleaning <- function(text) {
+  conv <- convert_to_ascii(text = text)
+  conv <- remove_hmtl_formatting(text = conv)
+  conv <- gsub("&amp;|amp;", "and", conv)
+  conv <- gsub("&#39;|&quot;", "'", conv)
+  conv <- gsub("&gt;", "Greater Than ", conv)
+  conv <- gsub("[[:punct:]]+", "", conv)
+  conv <- gsub("\\s+", " ", conv)
+  conv <- str_trunc(text, width = 500)
+  return(conv)
+}
+
+```
+
 
 ```{r hacky}
 # Included in hacky_cleaning is conversion to ascii and removing html formatting
 dat$title <- hacky_cleaning(dat$title)
 dat$authors <- hacky_cleaning(dat$authors)
-dat$journal <- hacky_cleaning(dat$journal)
-dat$abstract <- hacky_cleaning(dat$abstract)
+dat$journal <- remove_unacceptable_characters(dat$fulljournalname)
 
+# dat$abstract <- hacky_cleaning(dat$abstract)
+
+
+dat$entity_name <- make_entity_name(dat)
+
+# purrr::transpose(dat)
 # Remove common, unallowed characters from entity name; includes hacky_cleaning
 # dat$entity_name <- remove_unacceptable_characters(dat$entity_name)
 
 ```
 
+
 `set_up_multiannotations` parses comma-separated lists to be stored correctly in Synapse as multi-value annotations. Before setting up the multiannotations, add extra columns that are needed for working with the Portal. The additional, redundant columns will be removed in the future. Should keep `grant` and `Program`, and remove `long_amp_ad_grants`, `doi`, and `consortium`.
 
+
 ```{r columns}
-dat <- set_up_multiannotations(dat, "grantNumber")
+dat <- set_up_multiannotations(dat, "grant")
 dat <- set_up_multiannotations(dat, "program")
 ```
 
 The final data is transposed so that it can be iterated over by `purrr` and stored in Synapse under the `parent` folder.
+```{r}
+store_as_annotations <- function(parent, list) {
+  entity <- purrr::map(list, ~ synapseclient$File(
+    path = glue::glue("http://doi.org/{.$DOI}"),
+    name = .$entity_name,
+    parent = parent,
+    synapseStore = FALSE,
+    annotations = .
+  ))
+  # entity
+  purrr::map(entity, ~ syn$store(., forceVersion = FALSE))
+}
+```
+
 
 ```{r store, message=FALSE, echo=FALSE}
-parent = "syn51400816"
+parent = "syn51317180" # ELITE publications folder
 dat_list <- purrr::transpose(dat)
 store_as_annotations(parent = parent, dat_list)
-```
+``` 
 
 Query the publications table to force an update.
 ```{r query, message=FALSE, echo=FALSE}
-pub_table <- "syn51209321"
+pub_table <- "syn51407023"
 syn$tableQuery(glue::glue("SELECT * FROM {pub_table} LIMIT 1"))
 ```

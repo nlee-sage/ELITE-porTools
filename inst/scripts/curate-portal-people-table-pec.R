@@ -16,6 +16,7 @@ update_synapse_table <- function(table_id, update_df, syn, syntab) {
   update_rows <- syntab$Table(table_id, tmpfile)
   syn$store(update_rows)
 }
+
 make_df <- function(list, column_name) {
   df <- tibble::enframe(list) %>%
     tidyr::unnest(cols = c(value), keep_empty = TRUE)
