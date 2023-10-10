@@ -3,3 +3,5 @@
 .RData
 .Ruserdata
 .synapseConfig
+.DS_Store
+publications_pmid_list.txt

@@ -1,5 +1,6 @@
 ## ----setup, include = FALSE-----------------------------------------------------------------------------------------------------------------------------------------------------------
-rm(list=ls()); gc()
+rm(list = ls())
+gc()
 
 knitr::opts_chunk$set(echo = TRUE)
 # library(dccvalidator)
@@ -29,6 +30,39 @@ librarian::shelf(
   dplyr
 )
 
+# nolint start
+option_list <- list(
+  make_option(
+    "--auth_token",
+    action = "store",
+    default = NA,
+    type = "character",
+    help = "Synapse Personal Access Token. If not given, assumes local .synapseConfig."
+  ),
+  make_option(
+    "--grant_table",
+    action = "store",
+    default = NA,
+    type = "character",
+    help = "Synapse synID for table with grants to query for. Requires columns `Grant Number`, `grantSerialNumber`, `Program`. Grants are queried by serial number."
+  ),
+  make_option(
+    "--parent",
+    action = "store",
+    default = NA,
+    type = "character",
+    help = "Synapse synID of parent folder to store publication entities to."
+  ),
+  make_option(
+    "--pub_table",
+    action = "store",
+    default = NA,
+    type = "character",
+    help = "Synapse synID of file view scoped to publication folder (`parent`)."
+  )
+)
+opts <- parse_args(OptionParser(option_list = option_list))
+
 # get the base working directory to make it work on others systems
 base_dir <- gsub('vignettes', '', getwd())
 source(glue::glue("{base_dir}/R/pubmed.R"))
@@ -37,7 +71,15 @@ source(glue::glue("{base_dir}/R/annotation.R"))
 source(glue::glue("{base_dir}/R/globalHardCodedVariables.R"))
 
 # Login to synapse
-source(glue::glue("{base_dir}/R/synapseLogin.R"))
+## Synapse client and logging in
+synapseclient <- reticulate::import("synapseclient")
+syntab <- reticulate::import("synapseclient.table")
+syn <- synapseclient$Synapse()
+if (!is.na(opts$auth_token)) {
+  syn$login(authToken = opts$auth_token)
+} else {
+  syn$login()
+}
 
 
 ## ----functions------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -55,22 +97,26 @@ hacky_cleaning <- function(text) {
 
 
 ## ----vars, echo=FALSE-----------------------------------------------------------------------------------------------------------------------------------------------------------------
-table_id <- "syn51209786" # ELITE Portal Projects Table
+# table_id <- "syn51209786" # ELITE Portal Projects Table
 
 # Gather list of grants from synapse
-grants <- syn$tableQuery(
-  glue::glue("SELECT grantNumber, program, name FROM {table_id}")
-)$asDataFrame()
+grants <- syn$tableQuery(glue::glue("SELECT grantNumber, program, name FROM {sid_projects_table}"))$asDataFrame()
 
 # convert grant numbers into string
 library(comprehenr)
-grantNumbers <- to_list(for (g in grants$grantNumber) for (y in g) y)
+grantNumbers <-
+  to_list(for (g in grants$grantNumber)
+    for (y in g)
+      y)
 
 # expand rows with multiple grantNumbers
-grants$grantNumber <- purrr::map(grants$grantNumber, function(x){paste(unlist(x),collapse=",")})
+grants$grantNumber <-
+  purrr::map(grants$grantNumber, function(x) {
+    paste(unlist(x), collapse = ",")
+  })
 
 grants <- grants %>%
-     separate_rows(grantNumber)
+  separate_rows(grantNumber)
 
 ## ----scrape pubmed ids from grant numbers---------------------------------------------------------------------------------------------------------------------------------------------
 get_pub_details <- function(request_body) {
@@ -85,7 +131,7 @@ get_pub_details <- function(request_body) {
   return (response)
 }
 
-process_response <- function(response){
+process_response <- function(response) {
   if (response$status_code == 200) {
     # Success!
     data <- content(response, "parsed")
@@ -101,66 +147,66 @@ process_response <- function(response){
 API_URL <- "https://api.reporter.nih.gov/v2/publications/search"
 
 # Set the headers
-headers <- list(
-    accept = "application/json",
-    "Content-Type" = "application/json"
-)
+headers <- list(accept = "application/json",
+                "Content-Type" = "application/json")
 
 # Set the request body
 request_body <- list(
-    criteria = list(
-        core_project_nums = grantNumbers
-    ),
-    offset = 0,
-    limit = 50,
-    sort_field = "core_project_nums",
-    sort_order = "desc"
+  criteria = list(core_project_nums = grantNumbers),
+  offset = 0,
+  limit = 50,
+  sort_field = "core_project_nums",
+  sort_order = "desc"
 )
 
 # Make the POST request
-response <- POST(url = API_URL, headers = headers, body = request_body, encode = "json")
+response <-
+  POST(
+    url = API_URL,
+    headers = headers,
+    body = request_body,
+    encode = "json"
+  )
 
 # Check the response status code
 if (response$status_code == 200) {
-    # Success!
-    pmids <- list()
+  # Success!
+  pmids <- list()
 
-    # get results as dataframe
-    pmids_temp <- process_response(response)
+  # get results as dataframe
+  pmids_temp <- process_response(response)
 
-    data <- content(response, "parsed")
+  data <- content(response, "parsed")
 
-    total <- data$meta$total
+  total <- data$meta$total
+
+  results <- process_response(response)
+
+  pmids[[length(pmids) + 1]] <- results
+
+  request_body$offset <- request_body$offset + request_body$limit
+
+  while (nrow(results) > 0) {
+    response <- get_pub_details(request_body)
 
     results <- process_response(response)
 
+    # extend pmids list
     pmids[[length(pmids) + 1]] <- results
 
-    request_body$offset <- request_body$offset + request_body$limit
-
-    while (nrow(results) > 0){
-
-      response <- get_pub_details(request_body)
-
-      results <- process_response(response)
-
-      # extend pmids list
-      pmids[[length(pmids) + 1]] <- results
-
-      # update offset in request
-      request_body$offset <- request_body$offset + request_body$limit
-    }
+    # update offset in request
+    request_body$offset <-
+      request_body$offset + request_body$limit
+  }
 } else {
-    # Something went wrong
-    print("Error:", response$status_code)
+  # Something went wrong
+  print("Error:", response$status_code)
 }
 
 # create dataframe with pmids
 pmids_df <- do.call(rbind, pmids)
 
-pmids_df <- pmids_df %>% rename(
-  'grantNumber' = 'coreproject'
-)
+pmids_df <- pmids_df %>% rename('grantNumber' = 'coreproject')
 
 # for joining
 pmids_df$grantNumber <- as.character(pmids_df$grantNumber)
@@ -197,7 +243,16 @@ dat$journal <- remove_unacceptable_characters(dat$fulljournalname)
 # drop unnecessary columns
 dat <- dat %>% select(-c('applid', 'result', 'pubdate'))
 
-cat('Total rows: ', nrow(dat), '\n', 'Duplicates: ', sum(dat %>% duplicated()), '\n', 'Rows after duplicate remove: ', nrow(dat)-sum(dat %>% duplicated()))
+cat(
+  'Total rows: ',
+  nrow(dat),
+  '\n',
+  'Duplicates: ',
+  sum(dat %>% duplicated()),
+  '\n',
+  'Rows after duplicate remove: ',
+  nrow(dat) - sum(dat %>% duplicated())
+)
 
 # Need to remove duplicates, but keep all grants and consortium
 # Includes some renaming and dropping of columns
@@ -206,7 +261,12 @@ dat <- dat %>%
   mutate(grant = glue::glue_collapse(unique(.data$`grantNumber`), ", ")) %>%
   mutate(consortium = glue::glue_collapse(unique(.data$program), ", ")) %>%
   select(!c(grantNumber, program)) %>%
-  rename(pubmed_id = pmid, DOI = doi, program = consortium, study = name) %>%
+  rename(
+    pubmed_id = pmid,
+    DOI = doi,
+    program = consortium,
+    study = name
+  ) %>%
   distinct()
 
 dat <- dat %>% rename('pmid' = 'pubmed_id')
@@ -216,13 +276,13 @@ dat$Name <- make_entity_name(dat)
 
 #Using rename()
 dat <- dat %>% rename(
-        "Authors" = "authors",
-        "Journal"= "journal",
-        "PubmedId" = "pmid",
-        "Title"= "title",
-        "Year"="year",
-        "Grant"="grant",
-        "Program"="program",
+  "Authors" = "authors",
+  "Journal" = "journal",
+  "PubmedId" = "pmid",
+  "Title" = "title",
+  "Year" = "year",
+  "Grant" = "grant",
+  "Program" = "program",
 )
 
 # Remove common, unallowed characters from entity name; includes hacky_cleaning
@@ -238,22 +298,24 @@ dat <- set_up_multiannotations(dat, "Authors")
 
 ## -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 store_as_annotations <- function(parent, list) {
-  entity <- purrr::map(list, ~ synapseclient$File(
-    path = glue::glue("http://doi.org/{.$DOI}"),
-    name = .$entity_name,
-    parent = parent,
-    synapseStore = FALSE,
-    annotations = .
-  ))
+  entity <- purrr::map(
+    list,
+    ~ synapseclient$File(
+      path = glue::glue("http://doi.org/{.$DOI}"),
+      name = .$entity_name,
+      parent = parent,
+      synapseStore = FALSE,
+      annotations = .
+    )
+  )
   # entity
   purrr::map(entity, ~ syn$store(., forceVersion = FALSE))
 }
 
 
 ## ----store, message=FALSE, echo=FALSE-------------------------------------------------------------------------------------------------------------------------------------------------
-parent = "syn51317180" # ELITE publications folder
+# parent = "syn51317180" # ELITE publications folder
 dat_list <- purrr::transpose(dat)
 
 # another eternity
-store_as_annotations(parent = parent, dat_list)
-
+store_as_annotations(parent = sid_pub_folder, dat_list)
