@@ -19,12 +19,14 @@
 
 ## Libraries -------------------------------------------------------------------
 
-library("dplyr")
-library("optparse")
-library("porTools")
-library("rentrez")
-library("purrr")
-library("stringr")
+librarian::shelf(
+  dplyr,
+  optparse,
+  porTools,
+  rentrez,
+  purr,
+  stringr
+)
 
 ## Required, but not fully loaded
 ## readr, reticulate, glue, easyPubMed, dccvalidator

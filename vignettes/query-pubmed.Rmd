@@ -16,8 +16,8 @@ library(readr)
 library(reticulate)
 library(synapser)
 
-source("~/Projects/ELITE/porTools/R/globalHardCodedVariables.R")
-source("~/Projects/ELITE/porTools/R/pubmed.R")
+source("~/Documents/Projects/ELITE/ELITE-porTools/R/globalHardCodedVariables.R")
+source("~/Documents/Projects/ELITE/ELITE-porTools/R/pubmed.R")
 
 synLogin()
 ```

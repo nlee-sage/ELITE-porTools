@@ -9,23 +9,51 @@ output: html_document
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 # library(dccvalidator)
-library(janitor)
-library(dplyr)
-library(readr)
-library(stringr)
-library(reticulate)
-
-library(easyPubMed)
-library(synapser)
+# library(janitor)
+# library(dplyr)
+# library(readr)
+# library(stringr)
+# library(reticulate)
+# 
+# library(easyPubMed)
+# library(synapser)
 # library(porTools)
 
-source("~/Projects/ELITE/porTools/R/pubmed.R")
-source("~/Projects/ELITE/porTools/R/text-cleaning.R")
-source("~/Projects/ELITE/porTools/R/annotation.R")
-source("~/Projects/ELITE/porTools/R/globalHardCodedVariables.R")
+librarian::shelf(
+  optparse,
+  rmarkdown,
+  reticulate,
+  janitor,
+  dplyr,
+  readr,
+  stringr,
+  reticulate,
+  easyPubMed,
+  synapser
+)
+
+source("~/Documents/Projects/ELITE/ELITE-porTools/R/pubmed.R")
+source("~/Documents/Projects/ELITE/ELITE-porTools/R/text-cleaning.R")
+source("~/Documents/Projects/ELITE/ELITE-porTools/R/annotation.R")
+source("~/Documents/Projects/ELITE/ELITE-porTools/R/globalHardCodedVariables.R")
 
 # Login to synapse
-source("~/Projects/ELITE/porTools/R/synapseLogin.R")
+source("~/Documents/Projects/ELITE/ELITE-porTools/R/synapseLogin.R")
+```
+
+```{r}
+hacky_cleaning <- function(text) {
+  conv <- convert_to_ascii(text = text)
+  conv <- remove_hmtl_formatting(text = conv)
+  conv <- gsub("&amp;|amp;", "and", conv)
+  conv <- gsub("&#39;|&quot;", "'", conv)
+  conv <- gsub("&gt;", "Greater Than ", conv)
+  conv <- gsub("[[:punct:]]+", "", conv)
+  conv <- gsub("\\s+", " ", conv)
+  conv <- str_trunc(text, width = 500)
+  return(conv)
+}
+
 ```
 
 ## Query Pubmed and store data as file annotations
@@ -95,50 +123,38 @@ Write out pmid dataframe out to csv for loading later
 ```{r}
 pmid_map <- dat %>% select("pubmed_id", "grant", "program", "study")
 
-write.table(pmid_map, '~/Projects/ELITE/publications_pmid_list.txt', row.names = FALSE, sep = "\t")
+write.table(pmid_map, file.path(root_dir, 'publications_pmid_list.txt'), row.names = FALSE, sep = "\t")
 
-file <- File(path = "C:/Users/nlee/Documents/Projects/ELITE/publications_pmid_list.txt", parent = 'syn52227310')
+file <- File(path = file.path(root_dir, 'publications_pmid_list.txt'), parent = 'syn52227310')
 
 file <- synStore(file)
 ```
 
 The following has fixes for some of the formatting issues found. It also updates the entity name to remove common, unallowed characters.
 
-```{r}
-#Using rename()
-dat <- dat %>% rename("pmid" = "pubmed_id")
-```
-
-```{r}
-dat$year <- stringr::str_extract(dat$pubdate, "\\d{4}")
-```
-
-```{r}
-hacky_cleaning <- function(text) {
-  conv <- convert_to_ascii(text = text)
-  conv <- remove_hmtl_formatting(text = conv)
-  conv <- gsub("&amp;|amp;", "and", conv)
-  conv <- gsub("&#39;|&quot;", "'", conv)
-  conv <- gsub("&gt;", "Greater Than ", conv)
-  conv <- gsub("[[:punct:]]+", "", conv)
-  conv <- gsub("\\s+", " ", conv)
-  conv <- str_trunc(text, width = 500)
-  return(conv)
-}
-
-```
-
-
 ```{r hacky}
 # Included in hacky_cleaning is conversion to ascii and removing html formatting
+dat$year <- stringr::str_extract(dat$pubdate, "\\d{4}")
 dat$title <- hacky_cleaning(dat$title)
 dat$authors <- hacky_cleaning(dat$authors)
 dat$journal <- remove_unacceptable_characters(dat$fulljournalname)
 
 # dat$abstract <- hacky_cleaning(dat$abstract)
 
-
+dat <- dat %>% rename('pmid' = 'pubmed_id')
 dat$entity_name <- make_entity_name(dat)
+
+
+#Using rename()
+dat <- dat %>% rename(
+        "Authors" = "authors",
+        "Journal"= "journal",
+        "PubmedId" = "pmid",
+        "Title"= "title",
+        "Year"="year",
+        "Grant"="grant",
+        "Program"="program",
+)
 
 # purrr::transpose(dat)
 # Remove common, unallowed characters from entity name; includes hacky_cleaning
@@ -149,10 +165,10 @@ dat$entity_name <- make_entity_name(dat)
 
 `set_up_multiannotations` parses comma-separated lists to be stored correctly in Synapse as multi-value annotations. Before setting up the multiannotations, add extra columns that are needed for working with the Portal. The additional, redundant columns will be removed in the future. Should keep `grant` and `Program`, and remove `long_amp_ad_grants`, `doi`, and `consortium`.
 
-
 ```{r columns}
-dat <- set_up_multiannotations(dat, "grant")
-dat <- set_up_multiannotations(dat, "program")
+dat <- set_up_multiannotations(dat, "Grant")
+dat <- set_up_multiannotations(dat, "Program")
+dat <- set_up_multiannotations(dat, "Authors")
 ```
 
 The final data is transposed so that it can be iterated over by `purrr` and stored in Synapse under the `parent` folder.
@@ -176,6 +192,29 @@ parent = "syn51317180" # ELITE publications folder
 dat_list <- purrr::transpose(dat)
 store_as_annotations(parent = parent, dat_list)
 ``` 
+
+```{r}
+## Delete old publication report table rows
+pub_report_table <- "syn51209321"
+current_table <- syn$tableQuery(glue::glue("SELECT * FROM {pub_report_table}"))
+```
+
+```{r}
+syn$delete(current_table) # delete current rows
+
+## Update table rows
+temp_table <- tempfile()
+write_csv(pubs, temp_table, na = "")
+
+```
+
+```{r}
+new_table <- synapse$Table(pub_report_table, temp_table)
+syn$store(new_table)
+
+## Query to force table index to rebuild
+syn$tableQuery(glue("SELECT ROW_ID FROM {pub_report_table}"))
+```
 
 Query the publications table to force an update.
 ```{r query, message=FALSE, echo=FALSE}
