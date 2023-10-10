@@ -106,7 +106,7 @@ pub_query <- function(pub_pmids_list) {
   names(pub_summary_list) <- names(pub_pmids_list)
 
   # collapse list of dataframes into a single df
-  dplyr::bind_rows(pub_summary_list, .id = "grantSerialNumber")
+  dplyr::bind_rows(pub_summary_list, .id = "result")
 }
 
 #' Parse Summary Obj

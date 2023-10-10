@@ -1,0 +1,47 @@
+---
+title: "extra"
+output: html_document
+date: "2023-10-10"
+---
+
+
+Create the pmid to grant file map. Drop the duplicates found and store in synapse as reference for later updates. 
+Write out pmid dataframe out to csv for loading later
+```{r}
+pmid_map <- dat %>% select("pubmed_id", "grant", "program", "study")
+
+write.table(pmid_map, file.path(root_dir, 'publications_pmid_list.txt'), row.names = FALSE, sep = "\t")
+
+file <- File(path = file.path(root_dir, 'publications_pmid_list.txt'), parent = 'syn52227310')
+
+file <- synStore(file)
+```
+
+```{r}
+## Delete old publication report table rows
+pub_report_table <- "syn51209321"
+current_table <- syn$tableQuery(glue::glue("SELECT * FROM {pub_report_table}"))
+```
+
+```{r}
+syn$delete(current_table) # delete current rows
+
+## Update table rows
+temp_table <- tempfile()
+write_csv(pubs, temp_table, na = "")
+
+```
+
+```{r}
+new_table <- synapse$Table(pub_report_table, temp_table)
+syn$store(new_table)
+
+## Query to force table index to rebuild
+syn$tableQuery(glue("SELECT ROW_ID FROM {pub_report_table}"))
+```
+
+Query the publications table to force an update.
+```{r query, message=FALSE, echo=FALSE}
+pub_table <- "syn51407023"
+syn$tableQuery(glue::glue("SELECT * FROM {pub_table} LIMIT 1"))
+```
