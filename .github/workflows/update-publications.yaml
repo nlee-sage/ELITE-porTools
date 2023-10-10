@@ -1,4 +1,4 @@
-name: "Update AD Publications"
+name: "Update Publications"
 
 on:
   schedule:
