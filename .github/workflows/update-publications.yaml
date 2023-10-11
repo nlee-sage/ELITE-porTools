@@ -10,12 +10,12 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
-  update-ad-publications:
+  update-publications:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
 
-      - uses: r-lib/actions/setup-r@main
+      - uses: r-lib/actions/setup-r@master
         with:
           r-version: '4.0'
 
@@ -51,7 +51,7 @@ jobs:
 
       - name: Install porTools
         run: |
-          Rscript -e "remotes::install_github('Sage-Bionetworks/porTools')"
+          Rscript -e "remotes::install_github('eliteportal/publication_scraper')"
 
       - name: Query PubMed and upload results
         run: |
