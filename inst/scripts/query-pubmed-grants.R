@@ -1,18 +1,6 @@
 ## ----setup, include = FALSE-----------------------------------------------------------------------------------------------------------------------------------------------------------
-rm(list = ls())
-gc()
-
-knitr::opts_chunk$set(echo = TRUE)
-# library(dccvalidator)
-# library(janitor)
-# library(dplyr)
-# library(readr)
-# library(stringr)
-# library(reticulate)
-#
-# library(easyPubMed)
-# library(synapser)
-# library(porTools)
+# install.packages('librarian')
+# install.packages("synapser")
 
 librarian::shelf(
   optparse,
@@ -81,7 +69,6 @@ if (!is.na(opts$auth_token)) {
   syn$login()
 }
 
-
 ## ----functions------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 hacky_cleaning <- function(text) {
   conv <- convert_to_ascii(text = text)
@@ -100,7 +87,8 @@ hacky_cleaning <- function(text) {
 # table_id <- "syn51209786" # ELITE Portal Projects Table
 
 # Gather list of grants from synapse
-grants <- syn$tableQuery(glue::glue("SELECT grantNumber, program, name FROM {sid_projects_table}"))$asDataFrame()
+grants <-
+  syn$tableQuery(glue::glue("SELECT grantNumber, program, name FROM {sid_projects_table}"))$asDataFrame()
 
 # convert grant numbers into string
 library(comprehenr)
