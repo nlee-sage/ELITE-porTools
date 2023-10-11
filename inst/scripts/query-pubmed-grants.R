@@ -4,6 +4,7 @@ install.packages("synapser",
                  repos = c("http://ran.synapse.org", "http://cran.fhcrc.org"))
 
 install.packages('librarian')
+install.packages("synapser", repos=c("http://ran.synapse.org", "http://cran.fhcrc.org"))
 
 librarian::shelf(
   optparse,
