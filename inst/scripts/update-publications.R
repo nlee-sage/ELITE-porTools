@@ -20,18 +20,20 @@
 ## Libraries -------------------------------------------------------------------
 
 librarian::shelf(
-  dplyr,
   optparse,
-  porTools,
-  rentrez,
-  purr,
-  stringr
+  rmarkdown,
+  reticulate,
+  janitor,
+  dplyr,
+  readr,
+  stringr,
+  reticulate,
+  easyPubMed,
+  synapser,
+  httr,
+  tidyr,
+  dplyr
 )
-
-## Required, but not fully loaded
-## readr, reticulate, glue, easyPubMed, dccvalidator
-
-## Setup -----------------------------------------------------------------------
 
 # nolint start
 option_list <- list(
@@ -65,91 +67,263 @@ option_list <- list(
   )
 )
 opts <- parse_args(OptionParser(option_list = option_list))
-# nolint end
 
+# get the base working directory to make it work on others systems
+base_dir <- gsub('vignettes', '', getwd())
+source(glue::glue("{base_dir}/R/pubmed.R"))
+source(glue::glue("{base_dir}/R/text-cleaning.R"))
+source(glue::glue("{base_dir}/R/annotation.R"))
+source(glue::glue("{base_dir}/R/global-hard-coded-variables.R"))
+
+# Login to synapse
 ## Synapse client and logging in
-source("~/Projects/ELITE/porTools/R/synapseLogin.R")
+synapseclient <- reticulate::import("synapseclient")
+syntab <- reticulate::import("synapseclient.table")
+syn <- synapseclient$Synapse()
+if (!is.na(opts$auth_token)) {
+  syn$login(authToken = opts$auth_token)
+} else {
+  syn$login()
+}
 
-## Grab grants ------------------------------------------------------
+## ----functions------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+hacky_cleaning <- function(text) {
+  conv <- convert_to_ascii(text = text)
+  conv <- remove_hmtl_formatting(text = conv)
+  conv <- gsub("&amp;|amp;", "and", conv)
+  conv <- gsub("&#39;|&quot;", "'", conv)
+  conv <- gsub("&gt;", "Greater Than ", conv)
+  conv <- gsub("[[:punct:]]+", "", conv)
+  conv <- gsub("\\s+", " ", conv)
+  conv <- str_trunc(text, width = 500)
+  return(conv)
+}
 
-# qury synapse
-grants <- syn$tableQuery(
-  glue::glue(
-    "SELECT \"Grant Number\", grantSerialNumber, Program ",
-    "FROM {opts$grant_table}"
+
+## ----vars, echo=FALSE-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+# table_id <- "syn51209786" # ELITE Portal Projects Table
+
+# Gather list of grants from synapse
+grants <-
+  syn$tableQuery(glue::glue("SELECT grantNumber, program, name FROM {sid_projects_table}"))$asDataFrame()
+
+# convert grant numbers into string
+library(comprehenr)
+grantNumbers <-
+  to_list(for (g in grants$grantNumber)
+    for (y in g)
+      y)
+
+# expand rows with multiple grantNumbers
+grants$grantNumber <-
+  purrr::map(grants$grantNumber, function(x) {
+    paste(unlist(x), collapse = ",")
+  })
+
+grants <- grants %>%
+  separate_rows(grantNumber)
+
+## ----scrape pubmed ids from grant numbers---------------------------------------------------------------------------------------------------------------------------------------------
+get_pub_details <- function(request_body) {
+  # Make the POST request
+  response <-
+    POST(
+      url = API_URL,
+      headers = headers,
+      body = request_body,
+      encode = "json"
+    )
+  return (response)
+}
+
+process_response <- function(response) {
+  if (response$status_code == 200) {
+    # Success!
+    data <- content(response, "parsed")
+
+    df <- as.data.frame(do.call(rbind, data$results))
+
+    return (df)
+  }
+}
+
+# works for project Numbers instead of project serial numbers
+# Set the API URL
+API_URL <- "https://api.reporter.nih.gov/v2/publications/search"
+
+# Set the headers
+headers <- list(accept = "application/json",
+                "Content-Type" = "application/json")
+
+# Set the request body
+request_body <- list(
+  criteria = list(core_project_nums = grantNumbers),
+  offset = 0,
+  limit = 50,
+  sort_field = "core_project_nums",
+  sort_order = "desc"
+)
+
+# Make the POST request
+response <-
+  POST(
+    url = API_URL,
+    headers = headers,
+    body = request_body,
+    encode = "json"
   )
-)$asDataFrame()
 
-# remove rows that have NaN or NA or empty string for the serial number
-grants <- grants[!(grants$grantSerialNumber %in% c(NaN, NA, "")), ]
+# Check the response status code
+if (response$status_code == 200) {
+  # Success!
+  pmids <- list()
 
-## Query PubMed -----------------------------------------------------
+  # get results as dataframe
+  pmids_temp <- process_response(response)
 
-# unlist list of grant serial numbers into a vector
-grant_serial_nums <- unlist(grants$grantSerialNumber)
+  data <- content(response, "parsed")
 
-# run all grant serial numbers through query pubmed
-# returns a tibble
-  # each row is a publication
-  # columns include grantserialnumber, pubmed id, publication date, title, full journal name, doi, authors
-dat <- query_pubmed(grant_serial_nums)
+  total <- data$meta$total
 
-## Clean up ---------------------------------------------------------
+  results <- process_response(response)
 
-# munge pubmed query results
-# this function pulls out the year from pubdate and adds entity_name column
-dat <- munge_pubmed(dat)
+  pmids[[length(pmids) + 1]] <- results
 
-# For some reason, grantSerialNumber isn't always a character
-grants$grantSerialNumber <- as.character(grants$grantSerialNumber)
+  request_body$offset <- request_body$offset + request_body$limit
 
-# Join dat and grants table by grantSerialNumber
-dat <- dplyr::right_join(grants, dat, by = "grantSerialNumber")
+  while (nrow(results) > 0) {
+    response <- get_pub_details(request_body)
 
-# Some pubmedIDs show up multiple times under different grants
-# Need to capture this information in a single row of information so it isn't duplicated
+    results <- process_response(response)
 
-dat <- dat %>%
-  # for each pubmedID
-  group_by(pmid) %>%
-  mutate(
-    # Create a new column that captures all grants that duplicate pmid is associated with
-    grant = glue::glue_collapse(unique(.data$`Grant Number`), ", ")
-  ) %>%
-  # Create a new column that captures all programs that duplicate pmid is associated with
-  mutate(consortium = glue::glue_collapse(unique(.data$Program), ", ")) %>%
-  # drop Grant Number, Program, and GrantSerialNumber cols
-  select(!c(`Grant Number`, Program, grantSerialNumber)) %>%
-  # rename some columns
-  rename(pubmed_id = pmid, DOI = doi, Program = consortium, journal = fulljournalname) %>%
-  # keep only distinct rows
-  distinct()
+    # extend pmids list
+    pmids[[length(pmids) + 1]] <- results
 
-# Hacky cleaning
-## Included in hacky_cleaning is conversion to ascii and removing html formatting
+    # update offset in request
+    request_body$offset <-
+      request_body$offset + request_body$limit
+  }
+} else {
+  # Something went wrong
+  print("Error:", response$status_code)
+}
+
+# create dataframe with pmids
+pmids_df <- do.call(rbind, pmids)
+
+pmids_df <- pmids_df %>% rename('grantNumber' = 'coreproject')
+
+# for joining
+pmids_df$grantNumber <- as.character(pmids_df$grantNumber)
+
+
+## -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# one eternity later....
+pmid_metadata <- pub_query(pmids_df$pmid)
+
+
+## ----query----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# create complete dataset
+dat <- dplyr::right_join(grants, pmids_df, by = "grantNumber")
+
+dat$pmid <- as.character(dat$pmid)
+
+dat <- dplyr::left_join(dat, pmid_metadata, by = "pmid")
+
+# clean column names
+dat <- janitor::clean_names(dat, "lower_camel")
+
+
+
+## ----hacky----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Included in hacky_cleaning is conversion to ascii and removing html formatting
+dat$year <- stringr::str_extract(dat$pubdate, "\\d{4}")
+dat$year <- as.integer(dat$year)
 dat$title <- hacky_cleaning(dat$title)
 dat$authors <- hacky_cleaning(dat$authors)
-dat$journal <- hacky_cleaning(dat$journal)
+dat$journal <- remove_unacceptable_characters(dat$fulljournalname)
+
+# dat$abstract <- hacky_cleaning(dat$abstract)
+
+# drop unnecessary columns
+dat <- dat %>% select(-c('applid', 'result', 'pubdate'))
+
+cat(
+  'Total rows: ',
+  nrow(dat),
+  '\n',
+  'Duplicates: ',
+  sum(dat %>% duplicated()),
+  '\n',
+  'Rows after duplicate remove: ',
+  nrow(dat) - sum(dat %>% duplicated())
+)
+
+# Need to remove duplicates, but keep all grants and consortium
+# Includes some renaming and dropping of columns
+dat <- dat %>%
+  group_by(pmid) %>%
+  mutate(grant = glue::glue_collapse(unique(.data$`grantNumber`), ", ")) %>%
+  mutate(consortium = glue::glue_collapse(unique(.data$program), ", ")) %>%
+  select(!c(grantNumber, program)) %>%
+  rename(
+    pubmed_id = pmid,
+    DOI = doi,
+    program = consortium,
+    study = name
+  ) %>%
+  distinct()
+
+dat <- dat %>% rename('pmid' = 'pubmed_id')
+dat$entity_name <- make_entity_name(dat)
+dat$Name <- make_entity_name(dat)
+
+
+#Using rename()
+dat <- dat %>% rename(
+  "Authors" = "authors",
+  "Journal" = "journal",
+  "PubmedId" = "pmid",
+  "Title" = "title",
+  "Year" = "year",
+  "Grant" = "grant",
+  "Program" = "program",
+)
 
 # Remove common, unallowed characters from entity name; includes hacky_cleaning
 dat$entity_name <- remove_unacceptable_characters(dat$entity_name)
 
-## Remove row of NA
-# See this (https://github.com/Sage-Bionetworks/porTools/issues/10#issuecomment-1083441995) issue comment for more info
-# TODO: Figure out why this is happening
-# capture cases where pubmed ID is NA
-idx <- is.na(dat$pubmed_id)
-# only keep cases where pubmed ID is not NA
-dat <- dat[!idx,]
 
-# Set up multi-annotation columns correctly
-dat <- set_up_multiannotations(dat, "grant")
+
+## ----columns--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+dat <- set_up_multiannotations(dat, "Grant")
 dat <- set_up_multiannotations(dat, "Program")
+dat <- set_up_multiannotations(dat, "Authors")
 
-## Store publications --------------------------------------------
 
+## -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+store_as_annotations <- function(parent, list) {
+  entity <- purrr::map(
+    list,
+    ~ synapseclient$File(
+      path = glue::glue("http://doi.org/{.$DOI}"),
+      name = .$entity_name,
+      parent = parent,
+      synapseStore = FALSE,
+      annotations = .
+    )
+  )
+  # entity
+  purrr::map(entity, ~ syn$store(., forceVersion = FALSE))
+}
+
+
+## ----store, message=FALSE, echo=FALSE-------------------------------------------------------------------------------------------------------------------------------------------------
+# parent = "syn51317180" # ELITE publications folder
 dat_list <- purrr::transpose(dat)
-store_as_annotations(parent = opts$parent, dat_list)
+
+# another eternity
+store_as_annotations(parent = sid_pub_folder, dat_list)
 
 ## Force file view update
 if (!is.na(opts$pub_table)) {

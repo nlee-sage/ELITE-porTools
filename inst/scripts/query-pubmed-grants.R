@@ -14,10 +14,13 @@ librarian::shelf(
   synapser,
   easyPubMed,
   comprehenr,
+  easyPubMed,
   httr,
   tidyr,
   dplyr
 )
+
+library('synapser')
 
 # nolint start
 option_list <- list(

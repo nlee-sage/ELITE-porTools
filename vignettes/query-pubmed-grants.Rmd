@@ -42,7 +42,7 @@ base_dir <- gsub('vignettes', '', getwd())
 source(glue::glue("{base_dir}R/pubmed.R"))
 source(glue::glue("{base_dir}R/text-cleaning.R"))
 source(glue::glue("{base_dir}R/annotation.R"))
-source(glue::glue("{base_dir}R/globalHardCodedVariables.R"))
+source(glue::glue("{base_dir}R/global-hard-coded-variables.R"))
 
 # Login to synapse
 source(glue::glue("{base_dir}R/synapseLogin.R"))
@@ -243,7 +243,7 @@ dat <- dat %>%
 
 dat <- dat %>% rename('pmid' = 'pubmed_id')
 dat$entity_name <- make_entity_name(dat)
-dat$Name <- make_entity_name(dat)
+dat$Name <- dat$title
 
 
 #Using rename()
