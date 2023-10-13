@@ -57,4 +57,4 @@ jobs:
 
       - name: Query PubMed and upload results
         run: |
-          Rscript ./inst/scripts/query-pubmed-grants.R --grant_table syn51209786 --parent syn51400816 --pub_table syn51407023 --auth_token ${{ secrets.GITHUB_TOKEN }}
+          Rscript ./inst/scripts/query-pubmed-grants.R --grant_table syn51209786 --parent syn51400816 --pub_table syn51407023 --auth_token ${{ secrets.SYNAPSE_PAT }}
