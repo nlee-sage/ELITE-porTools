@@ -288,7 +288,6 @@ dat <- dat %>% rename(
   "PubmedId" = "pmid",
   "Title" = "title",
   "Year" = "year",
-  "grant" = "grant",
   "Program" = "program",
 )
 
