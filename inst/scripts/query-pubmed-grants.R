@@ -53,7 +53,13 @@ option_list <- list(
     help = "Synapse synID of file view scoped to publication folder (`parent`)."
   )
 )
+
 opts <- parse_args(OptionParser(option_list = option_list))
+
+# local testing opts
+opts$grant_table <- "syn51209786"
+opts$parent <- "syn51400816"
+opts$pub_table <- "syn51407023"
 
 # get the base working directory to make it work on others systems
 base_dir <- gsub('vignettes', '', getwd())
@@ -266,8 +272,8 @@ dat <- dat %>%
   group_by(pmid) %>%
   mutate(grant = glue::glue_collapse(unique(.data$`grant`), ", ")) %>%
   mutate(consortium = glue::glue_collapse(unique(.data$program), ", ")) %>%
-  mutate(name = glue::glue_collapse(unique(.data$name), ", ")) %>%
-  select(!c(grant, program)) %>%
+  mutate(name = glue::glue_collapse(unique(.data$name), ", "))  %>%
+  select(-program) %>%
   rename(
     pubmed_id = pmid,
     DOI = doi,
